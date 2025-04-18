@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 
-// https://vite.dev/config/
+// Substitua 'nome-do-repo' pelo NOME EXATO do seu repositório
 export default defineConfig({
-  plugins: [svelte()],
+  base: '/tarefa-4-estudando_o_estudante/',
+  plugins: [svelte()]
 })
