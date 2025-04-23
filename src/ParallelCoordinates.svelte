@@ -7,16 +7,16 @@
   onMount(async () => {
     const data = await d3.csv('public/data/student_attitude.csv');
 
-    const dimensions = [
-      '10th Mark',
-      '12th Mark',
-      'College Mark',
-      'Height (CM)',
-      'Weight (KG)',
-      'Daily Studying Time',
-      'Salary Expectation',
-      'Stress Level'
-    ];
+const dimensions = [
+  '10th Mark',
+  '12th Mark',
+  'college mark',
+  'Height(CM)',
+  'Weight(KG)',
+  'daily studing time',
+  'salary expectation',
+  'Stress Level'
+];
 
     const margin = { top: 30, right: 10, bottom: 10, left: 10 };
     const width = 900 - margin.left - margin.right;
