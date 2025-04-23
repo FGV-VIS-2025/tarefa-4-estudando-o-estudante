@@ -21,3 +21,4 @@
   <p>Foram carregados {data.length} registros.</p>
   <!-- aqui já dá pra começar a construir sua visualização -->
 {/if}
+
