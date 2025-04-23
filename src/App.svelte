@@ -16,6 +16,3 @@
   <Footer />
 </main>
 
-<main>
-  <h1>Análise de Estudantes 🎓</h1>
-</main>
