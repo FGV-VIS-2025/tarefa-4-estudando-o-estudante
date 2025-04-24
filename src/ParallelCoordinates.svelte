@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import { interpolateViridis } from 'd3';
+
   import * as d3 from 'd3';
 
   let container;
