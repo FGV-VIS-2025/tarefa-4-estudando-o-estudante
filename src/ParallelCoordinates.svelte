@@ -16,12 +16,12 @@
   let colourScale;
 
   // === helpers ===
-function parseValue(str) {
-  const s = str.trim().replace(/,/g, '').replace(/\s+/g, '');
-  if (!isNaN(s) && s !== '') return +s;
-  if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1);
-  return str;
-}
+  function parseValue(str) {
+    const s = str.trim();
+    if (/^-?\d+(\.\d+)?$/.test(s)) return +s;
+    if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1);
+    return s;
+  }
 
 let isNumericColour = false;
 
@@ -195,10 +195,29 @@ function computeColourScale() {
 <style>
   .multiselect { position: relative; display: inline-block; font-family: sans-serif; }
   .dropdown-btn { background:#fff; border:1px solid #ccc; padding:0.5rem 1rem; border-radius:4px; cursor:pointer; }
-  .dropdown-panel { position:absolute; top:100%; left:0; background:#fff; border:1px solid #ccc; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.15); margin-top:0.25rem; width:260px; z-index:10; }
+.dropdown-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: 0.25rem;
+  width: 400px;
+  max-height: 350px;
+  overflow-y: auto;
+  z-index: 10;
+}
   .filter-input { width:calc(100% - 1rem); margin:0.5rem; padding:0.3rem; border:1px solid #ccc; border-radius:4px; }
   .checkboxes { max-height:180px; overflow-y:auto; padding:0.5rem; }
-  .checkboxes label { display:flex; align-items:center; margin-bottom:0.3rem; font-size:0.9rem; }
+.checkboxes label {
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  word-break: break-word;
+  line-height: 1.3rem;
+}
   .checkboxes input { margin-right:0.5rem; }
   .actions { display:flex; justify-content:space-between; padding:0.5rem; border-top:1px solid #eee; }
   .actions button { background:#f5f5f5; border:1px solid #ccc; border-radius:4px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.85rem; }
