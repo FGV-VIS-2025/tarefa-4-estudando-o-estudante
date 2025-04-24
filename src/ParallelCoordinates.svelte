@@ -25,16 +25,15 @@
     isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
 
     if (isNumericColour) {
-      const mean = d3.mean(vals);
-      const std = d3.deviation(vals) || 1;
-      const zScores = vals.map(v => (v - mean) / std);
-      const [minZ, maxZ] = d3.extent(zScores);
-      data.forEach((d, i) => d.__colour = zScores[i]);
-
-      colourScale = d3.scaleSequential(interpolateTurbo).domain([minZ, maxZ]);
-    } else {
+      const [minVal, maxVal] = d3.extent(vals);
+      colourScale = d3.scaleSequential(interpolateTurbo).domain([minVal, maxVal]);
       data.forEach(d => d.__colour = d[colourVar]);
-      colourScale = d3.scaleOrdinal().domain([...new Set(vals)]).range(d3.schemeSet2);
+    } else {
+      const uniqueVals = [...new Set(vals)];
+      colourScale = d3.scaleOrdinal()
+        .domain(uniqueVals)
+        .range(d3.schemeTableau10); // Using a better color scheme for categories
+      data.forEach(d => d.__colour = d[colourVar]);
     }
   }
 
@@ -64,7 +63,7 @@
     const svg = d3.select(container)
       .append('svg')
       .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom + 60)  // <- 60px extra for the legend
+      .attr('height', height + margin.top + margin.bottom + 60)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -154,8 +153,11 @@
       });
     }
 
-    // LEGEND numeric
+    // LEGEND
+    const legendGroup = svg.append("g").attr("transform", `translate(0, ${height + 30})`);
+    
     if (isNumericColour) {
+      // Numeric legend
       const defs = svg.append("defs");
       const gradient = defs.append("linearGradient")
         .attr("id", "legend-gradient")
@@ -171,7 +173,6 @@
       }
 
       const legendWidth = 250, legendHeight = 12;
-      const legendGroup = svg.append("g").attr("transform", `translate(0, ${height + 30})`);
 
       legendGroup.append("rect")
         .attr("width", legendWidth)
@@ -179,56 +180,71 @@
         .style("fill", "url(#legend-gradient)")
         .style("stroke", "#ccc");
 
-      const scale = d3.scaleLinear().domain(colourScale.domain()).range([0, legendWidth]);
       legendGroup.append("g")
         .attr("transform", `translate(0, ${legendHeight})`)
-        .call(d3.axisBottom(scale).ticks(5));
-        legendGroup.append("text")
-  .attr("x", 125)
-  .attr("y", legendHeight + 25)
-  .attr("text-anchor", "middle")
-  .style("font-size", "12px")
-  .style("fill", "#333")
-  .text(`Escala de cor: ${colourVar}`);
-
+        .call(d3.axisBottom(colourScale).ticks(5));
+    } else {
+      // Categorical legend
+      const uniqueValues = [...new Set(data.map(d => d[colourVar]))];
+      const itemHeight = 20;
+      const itemsPerRow = 5;
+      const itemWidth = 100;
+      
+      uniqueValues.forEach((value, i) => {
+        const row = Math.floor(i / itemsPerRow);
+        const col = i % itemsPerRow;
         
+        legendGroup.append("rect")
+          .attr("x", col * itemWidth)
+          .attr("y", row * itemHeight)
+          .attr("width", 15)
+          .attr("height", 15)
+          .attr("fill", colourScale(value));
+          
+        legendGroup.append("text")
+          .attr("x", col * itemWidth + 20)
+          .attr("y", row * itemHeight + 12)
+          .text(value)
+          .style("font-size", "12px");
+      });
     }
-    if (isNumericColour) {
-  const [minVal, maxVal] = d3.extent(vals);
-  data.forEach((d, i) => d.__colour = vals[i]);  // valor original, não z-score
-
-  colourScale = d3.scaleSequential(interpolateTurbo).domain([minVal, maxVal]);
-}
-
+    
+    legendGroup.append("text")
+      .attr("x", 125)
+      .attr("y", -10)
+      .attr("text-anchor", "middle")
+      .style("font-size", "12px")
+      .style("fill", "#333")
+      .text(`Escala de cor: ${colourVar}`);
   }
 </script>
 
 <style>
   .multiselect { position: relative; display: inline-block; font-family: sans-serif; }
   .dropdown-btn { background:#fff; border:1px solid #ccc; padding:0.5rem 1rem; border-radius:4px; cursor:pointer; }
-.dropdown-panel {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-top: 0.25rem;
-  width: 400px;
-  max-height: 350px;
-  overflow-y: auto;
-  z-index: 10;
-}
+  .dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 0.25rem;
+    width: 400px;
+    max-height: 350px;
+    overflow-y: auto;
+    z-index: 10;
+  }
   .filter-input { width:calc(100% - 1rem); margin:0.5rem; padding:0.3rem; border:1px solid #ccc; border-radius:4px; }
   .checkboxes { max-height:180px; overflow-y:auto; padding:0.5rem; }
-.checkboxes label {
-  display: flex;
-  align-items: flex-start;
-  font-size: 0.9rem;
-  word-break: break-word;
-  line-height: 1.3rem;
-}
+  .checkboxes label {
+    display: flex;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    word-break: break-word;
+    line-height: 1.3rem;
+  }
   .checkboxes input { margin-right:0.5rem; }
   .actions { display:flex; justify-content:space-between; padding:0.5rem; border-top:1px solid #eee; }
   .actions button { background:#f5f5f5; border:1px solid #ccc; border-radius:4px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.85rem; }
