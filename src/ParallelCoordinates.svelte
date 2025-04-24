@@ -13,14 +13,22 @@
   let colourScale;
   let isNumericColour = false;
 
-  function parseValue(str) {
-    const s = str.trim().replace(/,/g, '').replace(/\s+/g, '');
-    if (!isNaN(s) && s !== '') return +s;
-    if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1);
-    return str;
-  }
-
+function parseValue(str) {
+  if (str === undefined || str === null || str === '') return null;
+  
+  const s = String(str).trim().replace(/,/g, '').replace(/\s+/g, '');
+  
+  // Check for percentage
+  if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1) / 100;
+  
+  // Check for regular numbers
+  if (!isNaN(s) && s !== '') return +s;
+  
+  // Return original if not a number
+  return str;
+}
   function computeColourScale() {
+    
     const vals = data.map(d => d[colourVar]);
     isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
 
@@ -35,6 +43,13 @@
         .range(d3.schemeTableau10); // Using a better color scheme for categories
       data.forEach(d => d.__colour = d[colourVar]);
     }
+
+      console.log('Colour variable:', colourVar);
+      console.log('Sample values:', vals.slice(0, 5));
+      isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
+      console.log('Is numeric:', isNumericColour);
+  
+
   }
 
   onMount(async () => {
