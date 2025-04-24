@@ -13,8 +13,6 @@
   <section class="content">
     <h2>Análise Visual</h2>
     <p>Explore a relação entre desempenho acadêmico e hábitos de estudo dos alunos com visualizações interativas.</p>
-    <p> Viz 1 Test </p>
-    <Viz1 />
     <ParallelCoordinates />
   </section>
   <Footer />
