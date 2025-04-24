@@ -16,12 +16,12 @@
   let colourScale;
 
   // === helpers ===
-  function parseValue(str) {
-    const s = str.trim();
-    if (/^-?\d+(\.\d+)?$/.test(s)) return +s;
-    if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1);
-    return s;
-  }
+function parseValue(str) {
+  const s = str.trim().replace(/,/g, '').replace(/\s+/g, '');
+  if (!isNaN(s) && s !== '') return +s;
+  if (/^\d+(\.\d+)?%$/.test(s)) return +s.slice(0, -1);
+  return str;
+}
 
 let isNumericColour = false;
 
