@@ -30,14 +30,19 @@ function computeColourScale() {
   isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
 
   if (isNumericColour) {
-    const [min, max] = d3.extent(vals);
-    colourScale = d3.scaleSequential()
-      .domain(min === max ? [min, min + 1] : [min, max])
-      .interpolator(d3.interpolateViridis);
+    const mean = d3.mean(vals);
+    const std = d3.deviation(vals) || 1;
+    const zScores = vals.map(v => (v - mean) / std);
+    const [minZ, maxZ] = d3.extent(zScores);
+    data.forEach((d, i) => d.__colour = zScores[i]);
+
+    colourScale = d3.scaleSequential(d3.interpolateTurbo)
+      .domain([minZ, maxZ]);
   } else {
+    data.forEach(d => d.__colour = d[colourVar]);
     colourScale = d3.scaleOrdinal()
       .domain(Array.from(new Set(vals)))
-      .range(d3.schemeTableau10);
+      .range(d3.schemeSet2);
   }
 }
   onMount(async () => {
