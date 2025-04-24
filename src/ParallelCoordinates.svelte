@@ -44,6 +44,8 @@ function computeColourScale() {
     allDimensions = Object.keys(data[0]);
     selectedDimensions = [...allDimensions];
     colourVar = allDimensions[0];
+    console.log('Tipo de valores de colourVar:', colourVar, data.map(d => typeof d[colourVar]));
+
   });
 
   function toggleDropdown() { dropdownOpen = !dropdownOpen; }
@@ -173,7 +175,7 @@ function computeColourScale() {
     }
 
     // LEGEND (categorical only)
-    if (colourScale.bandwidth === undefined) return; // numeric legend would require gradient, skip
+    if (isNumericColour) return;
     const legend = svg.append('g').attr('transform', `translate(0,${height + 25})`);
     const cat = colourScale.domain();
     legend.selectAll('rect')
