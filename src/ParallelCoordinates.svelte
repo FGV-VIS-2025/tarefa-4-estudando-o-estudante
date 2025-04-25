@@ -30,11 +30,10 @@
       const zScores = vals.map(v => (v - mean) / std);
       const [minZ, maxZ] = d3.extent(zScores);
       data.forEach((d, i) => d.__colour = zScores[i]);
-
       colourScale = d3.scaleSequential(interpolateTurbo).domain([minZ, maxZ]);
     } else {
       data.forEach(d => d.__colour = d[colourVar]);
-      colourScale = d3.scaleOrdinal().domain([...new Set(vals)]).range(d3.schemeSet2);
+      colourScale = d3.scaleOrdinal(d3.schemeTableau10).domain([...new Set(vals)]);
     }
   }
 
@@ -47,10 +46,11 @@
   });
 
   function toggleDropdown() { dropdownOpen = !dropdownOpen; }
-  const selectAll = () => selectedDimensions = [...allDimensions];
-  const clearAll = () => selectedDimensions = [];
+  const selectAll = () => { selectedDimensions = [...allDimensions]; };
+  const clearAll = () => { selectedDimensions = []; };
 
   $: if (data.length && selectedDimensions.length && colourVar) {
+    if (!selectedDimensions.includes(colourVar)) selectedDimensions = [...selectedDimensions, colourVar];
     computeColourScale();
     drawParallel();
   }
@@ -64,7 +64,7 @@
     const svg = d3.select(container)
       .append('svg')
       .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom + 60)  // <- 60px extra for the legend
+      .attr('height', height + margin.top + margin.bottom + 60)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -77,23 +77,13 @@
         : d3.scalePoint().domain([...new Set(vals)]).range([height, 0]).padding(0.5);
     });
 
-    const line = d3.line();
+    const line = d3.line().defined(([_, y]) => y !== undefined && y !== null);
 
-    svg.append('g').attr('class', 'background')
+    svg.append('g')
       .selectAll('path')
       .data(data)
       .enter().append('path')
-      .attr('d', d => line(selectedDimensions.map(p => [x(p), y[p](d[p])])))
-      .attr('fill', 'none')
-      .attr('stroke', d => colourScale(d.__colour))
-      .attr('stroke-width', 1)
-      .attr('opacity', 0.15);
-
-    const foreground = svg.append('g').attr('class', 'foreground')
-      .selectAll('path')
-      .data(data)
-      .enter().append('path')
-      .attr('d', d => line(selectedDimensions.map(p => [x(p), y[p](d[p])])))
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), y[p](d[p])])) )
       .attr('fill', 'none')
       .attr('stroke', d => colourScale(d.__colour))
       .attr('stroke-width', 1.2)
@@ -109,12 +99,11 @@
         .on('start', function(event, d) { this.__origin__ = x(d); })
         .on('drag', function(event, d) {
           const dx = event.x;
-          x.range([0, width]);
           d3.select(this).attr('transform', `translate(${dx})`);
-          selectedDimensions.sort((a,b) => x(a) - x(b));
-          foreground.attr('d', d => line(selectedDimensions.map(p => [x(p), y[p](d[p])])));
+          selectedDimensions.sort((a, b) => x(a) - x(b));
+          drawParallel();
         })
-        .on('end', function() {
+        .on('end', function(event, d) {
           d3.select(this).attr('transform', d => `translate(${x(d)})`);
         })
       );
@@ -146,15 +135,15 @@
         .filter(function(d){ return d3.brushSelection(this); })
         .each(function(d){ actives.push({ dim: d, extent: d3.brushSelection(this).map(y[d].invert) }); });
 
-      foreground.style('display', d => {
-        return actives.every(active => {
-          const val = d[active.dim];
-          return val >= Math.min(...active.extent) && val <= Math.max(...active.extent);
-        }) ? null : 'none';
-      });
+      svg.selectAll('path')
+        .style('display', d => {
+          return actives.every(active => {
+            const val = d[active.dim];
+            return val >= Math.min(...active.extent) && val <= Math.max(...active.extent);
+          }) ? null : 'none';
+        });
     }
 
-    // LEGEND numeric
     if (isNumericColour) {
       const defs = svg.append("defs");
       const gradient = defs.append("linearGradient")
@@ -183,52 +172,45 @@
       legendGroup.append("g")
         .attr("transform", `translate(0, ${legendHeight})`)
         .call(d3.axisBottom(scale).ticks(5));
-        legendGroup.append("text")
-  .attr("x", 125)
-  .attr("y", legendHeight + 25)
-  .attr("text-anchor", "middle")
-  .style("font-size", "12px")
-  .style("fill", "#333")
-  .text(`Escala de cor: ${colourVar}`);
 
-        
+      legendGroup.append("text")
+        .attr("x", 125)
+        .attr("y", legendHeight + 25)
+        .attr("text-anchor", "middle")
+        .style("font-size", "12px")
+        .style("fill", "#333")
+        .text(`Escala de cor: ${colourVar}`);
     }
-    if (isNumericColour) {
-  const [minVal, maxVal] = d3.extent(vals);
-  data.forEach((d, i) => d.__colour = vals[i]);  // valor original, não z-score
-
-  colourScale = d3.scaleSequential(interpolateTurbo).domain([minVal, maxVal]);
-}
-
   }
 </script>
+
 
 <style>
   .multiselect { position: relative; display: inline-block; font-family: sans-serif; }
   .dropdown-btn { background:#fff; border:1px solid #ccc; padding:0.5rem 1rem; border-radius:4px; cursor:pointer; }
-.dropdown-panel {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-top: 0.25rem;
-  width: 400px;
-  max-height: 350px;
-  overflow-y: auto;
-  z-index: 10;
-}
+  .dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-top: 0.25rem;
+    width: 400px;
+    max-height: 350px;
+    overflow-y: auto;
+    z-index: 10;
+  }
   .filter-input { width:calc(100% - 1rem); margin:0.5rem; padding:0.3rem; border:1px solid #ccc; border-radius:4px; }
   .checkboxes { max-height:180px; overflow-y:auto; padding:0.5rem; }
-.checkboxes label {
-  display: flex;
-  align-items: flex-start;
-  font-size: 0.9rem;
-  word-break: break-word;
-  line-height: 1.3rem;
-}
+  .checkboxes label {
+    display: flex;
+    align-items: flex-start;
+    font-size: 0.9rem;
+    word-break: break-word;
+    line-height: 1.3rem;
+  }
   .checkboxes input { margin-right:0.5rem; }
   .actions { display:flex; justify-content:space-between; padding:0.5rem; border-top:1px solid #eee; }
   .actions button { background:#f5f5f5; border:1px solid #ccc; border-radius:4px; padding:0.3rem 0.6rem; cursor:pointer; font-size:0.85rem; }
