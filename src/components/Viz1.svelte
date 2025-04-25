@@ -36,6 +36,7 @@
         .range([height, 0]);
     });
 
+    // Define a área do SVG
     const svg = d3.select(container)
       .append('svg')
       .attr('width', width + margin.left + margin.right)
@@ -46,6 +47,36 @@
     // Função que gera o path de cada linha
     function path(d) {
       return d3.line()(dimensions.map(p => [x(p), y[p](d[p])]));
+    }
+
+    const brushes = {};
+
+    // Função para coletar as extensões de cada brush
+    function brushExtents() {
+      let extents = {};
+      dimensions.forEach(d => {
+        const brush = brushes[d];
+        if (brush && !brush.empty()) {
+          extents[d] = brush.extent();
+        }
+      });
+      return extents;
+    }
+
+    // Função que filtra as linhas com base nas extensões dos brushes
+    function brushed() {
+      const extents = brushExtents();
+      svg.select('.foreground')
+        .selectAll('path')
+        .style('display', d => {
+          return dimensions.every(dim => {
+            const extent = extents[dim];
+            if (extent) {
+              return d[dim] >= extent[0] && d[dim] <= extent[1];
+            }
+            return true;
+          }) ? null : 'none';
+        });
     }
 
     // Linhas de fundo (background)
@@ -68,20 +99,34 @@
       .attr('fill', 'none')
       .attr('stroke-opacity', 0.6);
 
-    // Eixos para cada dimensão
+    // Eixos e brushes para cada dimensão
     const g = svg.selectAll('.dimension')
       .data(dimensions)
       .enter().append('g')
       .attr('class', 'dimension')
       .attr('transform', d => `translate(${x(d)})`);
 
-    // Desenha eixo e título
+    // Adiciona eixo
     g.append('g')
       .each(function(d) { d3.select(this).call(d3.axisLeft(y[d])); })
       .append('text')
       .style('text-anchor', 'middle')
       .attr('y', -9)
       .text(d => d);
+
+    // Adiciona brushes
+    g.append('g')
+      .attr('class', 'brush')
+      .each(function(d) {
+        const brush = d3.brushY()
+          .extent([[-10, 0], [10, height]])
+          .on('brush', brushed)
+          .on('end', brushed);
+        
+        d3.select(this).call(brush);
+        brushes[d] = brush;
+      });
+
   });
 </script>
 
