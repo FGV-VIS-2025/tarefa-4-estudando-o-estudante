@@ -83,25 +83,14 @@
 
     line = d3.line();
 
-    // Desenha linhas de fundo (todas os dados)
-    svg.selectAll('.background-line')
-      .data(data)
+    // Desenha linhas de fundo e filtradas como um tipo só com switch
+    svg.selectAll('.line')
+      .data(data) // Sempre trabalhe com todos os dados
       .enter().append('path')
-        .attr('class', 'background-line')
+        .attr('class', 'line')
         .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
         .attr('fill', 'none')
-        .attr('stroke', '#ccc')
-        .attr('stroke-width', 1)
-        .attr('opacity', 0.1);
-
-    // Desenha linhas filtradas
-    svg.selectAll('.foreground-line')
-      .data(filteredData)
-      .enter().append('path')
-        .attr('class', 'foreground-line')
-        .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-        .attr('fill', 'none')
-        .attr('stroke', '#4682b4')
+        .attr('stroke', '#4682b4') // Todas começam azuis
         .attr('stroke-width', 1)
         .attr('opacity', 0.7);
 
@@ -184,17 +173,13 @@
     });
   });
 
-  // Atualiza ambas as linhas
-  d3.select(container).selectAll('.background-line')
+  d3.select(container).selectAll('.line')
+    .attr('stroke', d => 
+      filteredData.includes(d) ? '#4682b4' : '#e0e0e0' // Azul se filtrado, cinza se não
+    )
     .attr('opacity', d => 
-      filteredData.includes(d) ? 0.1 : 0.02);
-      
-  d3.select(container).selectAll('.foreground-line')
-    .data(filteredData)
-    .join('path')
-      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-      .attr('stroke', '#4682b4')
-      .attr('opacity', 0.7);
+      filteredData.includes(d) ? 0.7 : 0.05 // Opaco se filtrado, quase transparente se não
+    );
 }
 </script>
 
