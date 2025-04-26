@@ -8,6 +8,11 @@
   let selectedDimensions = [];
   let filterText = '';
   let dropdownOpen = false;
+  let brushes = {};
+  
+  // Variáveis que precisamos adicionar
+  let x, yScales, line;
+  let filteredData = [];
 
   function parseValue(str) {
     const s = str.trim();
@@ -22,7 +27,8 @@
       Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
     );
     allDimensions = Object.keys(data[0]);
-    selectedDimensions = [...allDimensions]; // tudo marcado por padrão
+    selectedDimensions = [...allDimensions];
+    filteredData = [...data];
   });
 
   function toggleDropdown() {
@@ -35,7 +41,6 @@
     selectedDimensions = [];
   }
 
-  // redesenha o paralelo sempre que data OU seleção mudam
   $: if (data.length && selectedDimensions) {
     drawParallel();
   }
@@ -54,12 +59,12 @@
       .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const x = d3.scalePoint()
+    x = d3.scalePoint()
       .domain(selectedDimensions)
       .range([0, width])
       .padding(1);
 
-    const yScales = {};
+    yScales = {};
     selectedDimensions.forEach(dim => {
       const vals = data.map(d => d[dim]);
       if (vals.every(v => typeof v === 'number')) {
@@ -76,17 +81,31 @@
       }
     });
 
-    const line = d3.line();
+    line = d3.line();
 
-    svg.selectAll('path')
+    // Desenha linhas de fundo (todas os dados)
+    svg.selectAll('.background-line')
       .data(data)
       .enter().append('path')
-        .attr('d', d => line(selectedDimensions.map(p => [ x(p), yScales[p](d[p]) ])))
+        .attr('class', 'background-line')
+        .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+        .attr('fill', 'none')
+        .attr('stroke', '#ccc')
+        .attr('stroke-width', 1)
+        .attr('opacity', 0.1);
+
+    // Desenha linhas filtradas
+    svg.selectAll('.foreground-line')
+      .data(filteredData)
+      .enter().append('path')
+        .attr('class', 'foreground-line')
+        .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
         .attr('fill', 'none')
         .attr('stroke', '#4682b4')
         .attr('stroke-width', 1)
-        .attr('opacity', 0.3);
+        .attr('opacity', 0.7);
 
+    // Adiciona eixos
     svg.selectAll('.axis')
       .data(selectedDimensions).enter()
       .append('g')
@@ -100,7 +119,83 @@
         .attr('y', -9)
         .text(d => d)
         .style('fill', 'black');
+    
+    // Adiciona brushes
+    selectedDimensions.forEach(dim => {
+      const brush = d3.brushY()
+        .extent([[-10, 0], [10, height]])
+        .on('brush', function(event) {
+        if (event.selection) {
+          const [y0, y1] = event.selection;
+          const scale = yScales[dim];
+          
+          if (scale.ticks) { // Numérico
+            brushes[dim] = [
+              Math.min(scale.invert(y0), scale.invert(y1)),
+              Math.max(scale.invert(y0), scale.invert(y1))
+            ];
+          } else { // Categórico
+            const domain = scale.domain();
+            const pixelToIndex = d3.scaleLinear()
+              .range([0, domain.length - 1])
+              .domain([0, height]);
+            const index0 = Math.round(pixelToIndex(y0));
+            const index1 = Math.round(pixelToIndex(y1));
+            brushes[dim] = [
+              domain[Math.min(index0, index1)],
+              domain[Math.max(index0, index1)]
+            ];
+          }
+          updateFilteredData();
+        }
+      })
+
+      svg.append('g')
+        .attr('class', 'brush')
+        .attr('transform', `translate(${x(dim)}, 0)`)
+        .call(brush)
+        .call(g => g.select('.overlay')
+          .attr('width', 20)) // Aumenta a área sensível ao brush
+        .call(g => g.selectAll('.selection,.handle')
+          .attr('stroke', '#4682b4')
+          .attr('fill', '#4682b4')
+          .attr('fill-opacity', 0.2));
+    });
   }
+
+  function updateFilteredData() {
+  filteredData = data.filter(d => {
+    return selectedDimensions.every(dim => {
+      if (!brushes[dim]) return true;
+      
+      const value = d[dim];
+      const [min, max] = brushes[dim];
+      
+      if (yScales[dim].ticks) { // Numérico
+        return value >= Math.min(min, max) && value <= Math.max(min, max);
+      } else { // Categórico
+        const domain = yScales[dim].domain();
+        const valueIndex = domain.indexOf(value);
+        const minIndex = domain.indexOf(min);
+        const maxIndex = domain.indexOf(max);
+        return valueIndex >= Math.min(minIndex, maxIndex) && 
+               valueIndex <= Math.max(minIndex, maxIndex);
+      }
+    });
+  });
+
+  // Atualiza ambas as linhas
+  d3.select(container).selectAll('.background-line')
+    .attr('opacity', d => 
+      filteredData.includes(d) ? 0.1 : 0.02);
+      
+  d3.select(container).selectAll('.foreground-line')
+    .data(filteredData)
+    .join('path')
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+      .attr('stroke', '#4682b4')
+      .attr('opacity', 0.7);
+}
 </script>
 
 <style>
@@ -169,6 +264,7 @@
   }
 </style>
 
+<!-- Seu HTML existente permanece o mesmo -->
 <div class="multiselect">
   <button class="dropdown-btn" on:click={toggleDropdown}>
     {selectedDimensions.length === 0
