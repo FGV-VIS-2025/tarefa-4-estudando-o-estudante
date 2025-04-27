@@ -109,7 +109,7 @@
         .text(d => d)
         .style('fill', 'black');
     
-    // Adiciona brushes
+    // Adicionar brushes
     selectedDimensions.forEach(dim => {
       const brush = d3.brushY()
         .extent([[-10, 0], [10, height]])
@@ -123,13 +123,16 @@
               Math.min(scale.invert(y0), scale.invert(y1)),
               Math.max(scale.invert(y0), scale.invert(y1))
             ];
-          } else { // Categórico
+          } else { 
+            // Lógica categórica - corrige a inversão Y
             const domain = scale.domain();
             const pixelToIndex = d3.scaleLinear()
               .range([0, domain.length - 1])
-              .domain([0, height]);
+              .domain([height, 0]); // Invertido: Y=0 é o topo!
+
             const index0 = Math.round(pixelToIndex(y0));
             const index1 = Math.round(pixelToIndex(y1));
+            
             brushes[dim] = [
               domain[Math.min(index0, index1)],
               domain[Math.max(index0, index1)]
@@ -138,6 +141,14 @@
           updateFilteredData();
         }
       })
+
+      .on('end', function(event) {
+        if (!event.selection) { // Se clicou fora do brush
+          delete brushes[dim]; // Remove o filtro desta dimensão
+          filteredData = [...data]; // Reseta para todos os dados
+          updateFilteredData(); // Atualiza o gráfico
+        }
+      });
 
       svg.append('g')
         .attr('class', 'brush')
@@ -162,11 +173,14 @@
       
       if (yScales[dim].ticks) { // Numérico
         return value >= Math.min(min, max) && value <= Math.max(min, max);
-      } else { // Categórico
+      } // Para escalas CATEGÓRICAS (nominais - corrige a inversão)
+      else {
         const domain = yScales[dim].domain();
         const valueIndex = domain.indexOf(value);
         const minIndex = domain.indexOf(min);
         const maxIndex = domain.indexOf(max);
+        
+        // Aqui está a correção: inverte minIndex e maxIndex se necessário
         return valueIndex >= Math.min(minIndex, maxIndex) && 
                valueIndex <= Math.max(minIndex, maxIndex);
       }
@@ -249,7 +263,6 @@
   }
 </style>
 
-<!-- Seu HTML existente permanece o mesmo -->
 <div class="multiselect">
   <button class="dropdown-btn" on:click={toggleDropdown}>
     {selectedDimensions.length === 0
