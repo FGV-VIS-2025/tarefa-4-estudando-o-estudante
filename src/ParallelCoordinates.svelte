@@ -9,8 +9,9 @@
   let filterText = '';
   let dropdownOpen = false;
   let brushes = {};
-  
-  // Variáveis que precisamos adicionar
+  let colourVar = '';
+  let colourScale;
+  let isNumericColour = false;
   let x, yScales, line;
   let filteredData = [];
 
@@ -23,39 +24,64 @@
 
   onMount(async () => {
     const raw = await d3.csv(import.meta.env.BASE_URL + 'data/student_attitude.csv');
-    data = raw.map(d =>
-      Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
-    );
-    allDimensions = Object.keys(data[0]);
+    data = raw.map(d => {
+      const parsed = Object.fromEntries(
+        Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]
+      ));
+      parsed.id = Math.random().toString(36).substr(2, 9); // Adiciona um ID único
+      return parsed;
+    });
+    allDimensions = Object.keys(data[0]).filter(d => d !== 'id');
     selectedDimensions = [...allDimensions];
+    colourVar = allDimensions[0];
     filteredData = [...data];
   });
+
+  function computeColourScale() {
+    const vals = data.map(d => d[colourVar]);
+    isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
+
+    if (isNumericColour) {
+      const [minVal, maxVal] = d3.extent(vals);
+      data.forEach(d => d.__colour = d[colourVar]);
+      return d3.scaleSequential(d3.interpolatePlasma).domain([minVal, maxVal]);
+    } else {
+      const categories = [...new Set(vals)];
+      data.forEach(d => d.__colour = d[colourVar]);
+      return d3.scaleOrdinal()
+        .domain(categories)
+        .range(d3.schemeTableau10);
+    }
+  }
 
   function toggleDropdown() {
     dropdownOpen = !dropdownOpen;
   }
+
   function selectAll() {
     selectedDimensions = [...allDimensions];
   }
+
   function clearAll() {
     selectedDimensions = [];
   }
 
-  $: if (data.length && selectedDimensions) {
+  $: if (data.length && selectedDimensions.length && colourVar) {
+    colourScale = computeColourScale();
     drawParallel();
   }
 
   function drawParallel() {
     d3.select(container).selectAll('*').remove();
 
-    const margin = { top: 30, right: 10, bottom: 10, left: 10 };
-    const width  = 900 - margin.left - margin.right;
-    const height = 500 - margin.top  - margin.bottom;
+    const margin = { top: 30, right: 10, bottom: 60, left: 10 };
+    const width = 900 - margin.left - margin.right;
+    const height = 500 - margin.top - margin.bottom;
 
     const svg = d3.select(container)
       .append('svg')
-        .attr('width',  width + margin.left + margin.right)
-        .attr('height', height + margin.top  + margin.bottom)
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom + 60)
       .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -83,18 +109,29 @@
 
     line = d3.line();
 
-    // Desenha linhas de fundo e filtradas como um tipo só com switch
-    svg.selectAll('.line')
-      .data(data) // Sempre trabalhe com todos os dados
+    // Linhas de fundo
+    svg.append('g').attr('class', 'background')
+      .selectAll('path')
+      .data(data)
       .enter().append('path')
-        .attr('class', 'line')
-        .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-        .attr('fill', 'none')
-        .attr('stroke', '#4682b4') // Todas começam azuis
-        .attr('stroke-width', 1)
-        .attr('opacity', 0.7);
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+      .attr('fill', 'none')
+      .attr('stroke', d => colourScale(d.__colour))
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.15);
 
-    // Adiciona eixos
+    // Linhas principais
+    const foreground = svg.append('g').attr('class', 'foreground')
+      .selectAll('path')
+      .data(data)
+      .enter().append('path')
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+      .attr('fill', 'none')
+      .attr('stroke', d => colourScale(d.__colour))
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.7);
+
+    // Eixos
     svg.selectAll('.axis')
       .data(selectedDimensions).enter()
       .append('g')
@@ -108,93 +145,141 @@
         .attr('y', -9)
         .text(d => d)
         .style('fill', 'black');
-    
-    // Adicionar brushes
+
+    // Brushes
     selectedDimensions.forEach(dim => {
       const brush = d3.brushY()
         .extent([[-10, 0], [10, height]])
         .on('brush', function(event) {
-        if (event.selection) {
-          const [y0, y1] = event.selection;
-          const scale = yScales[dim];
-          
-          if (scale.ticks) { // Numérico
-            brushes[dim] = [
-              Math.min(scale.invert(y0), scale.invert(y1)),
-              Math.max(scale.invert(y0), scale.invert(y1))
-            ];
-          } else { 
-            // Lógica categórica - corrige a inversão Y
-            const domain = scale.domain();
-            const pixelToIndex = d3.scaleLinear()
-              .range([0, domain.length - 1])
-              .domain([height, 0]); // Invertido: Y=0 é o topo!
-
-            const index0 = Math.round(pixelToIndex(y0));
-            const index1 = Math.round(pixelToIndex(y1));
+          if (event.selection) {
+            const [y0, y1] = event.selection;
+            const scale = yScales[dim];
             
-            brushes[dim] = [
-              domain[Math.min(index0, index1)],
-              domain[Math.max(index0, index1)]
-            ];
-          }
-          updateFilteredData();
-        }
-      })
+            if (scale.ticks) {
+              brushes[dim] = [
+                Math.min(scale.invert(y0), scale.invert(y1)),
+                Math.max(scale.invert(y0), scale.invert(y1))
+              ];
+            } else {
+              const domain = scale.domain();
+              const pixelToIndex = d3.scaleLinear()
+                .range([0, domain.length - 1])
+                .domain([height, 0]);
 
-      .on('end', function(event) {
-        if (!event.selection) { // Se clicou fora do brush
-          delete brushes[dim]; // Remove o filtro desta dimensão
-          filteredData = [...data]; // Reseta para todos os dados
-          updateFilteredData(); // Atualiza o gráfico
-        }
-      });
+              const index0 = Math.round(pixelToIndex(y0));
+              const index1 = Math.round(pixelToIndex(y1));
+              
+              brushes[dim] = [
+                domain[Math.min(index0, index1)],
+                domain[Math.max(index0, index1)]
+              ];
+            }
+            updateFilteredData();
+          }
+        })
+        .on('end', function(event) {
+          if (!event.selection) {
+            delete brushes[dim];
+            filteredData = [...data];
+            updateFilteredData();
+          }
+        });
 
       svg.append('g')
         .attr('class', 'brush')
         .attr('transform', `translate(${x(dim)}, 0)`)
         .call(brush)
         .call(g => g.select('.overlay')
-          .attr('width', 20)) // Aumenta a área sensível ao brush
+          .attr('width', 20))
         .call(g => g.selectAll('.selection,.handle')
           .attr('stroke', '#4682b4')
           .attr('fill', '#4682b4')
           .attr('fill-opacity', 0.2));
     });
+
+    // Legenda
+    const legend = svg.append('g')
+      .attr('transform', `translate(20, ${height + 20})`);
+
+    if (isNumericColour) {
+      const legendWidth = 200;
+      const legendHeight = 20;
+      
+      const defs = svg.append('defs');
+      const gradient = defs.append('linearGradient')
+        .attr('id', 'color-gradient')
+        .attr('x1', '0%')
+        .attr('y1', '0%')
+        .attr('x2', '100%')
+        .attr('y2', '0%');
+      
+      gradient.selectAll('stop')
+        .data(d3.range(0, 1.01, 0.1))
+        .enter().append('stop')
+        .attr('offset', d => `${d * 100}%`)
+        .attr('stop-color', d => d3.interpolatePlasma(d));
+      
+      legend.append('rect')
+        .attr('width', legendWidth)
+        .attr('height', legendHeight)
+        .style('fill', 'url(#color-gradient)');
+      
+      legend.append('g')
+        .attr('transform', `translate(0, ${legendHeight})`)
+        .call(d3.axisBottom(colourScale.copy()))
+        .select('.domain')
+        .attr('stroke', '#777');
+    } else {
+      const categories = [...new Set(data.map(d => d[colourVar]))];
+      const itemWidth = 100;
+      
+      categories.forEach((cat, i) => {
+        const g = legend.append('g')
+          .attr('transform', `translate(${i * itemWidth}, 0)`);
+        
+        g.append('circle')
+          .attr('r', 5)
+          .attr('fill', colourScale(cat));
+        
+        g.append('text')
+          .attr('x', 10)
+          .attr('y', 5)
+          .text(cat.length > 15 ? cat.substring(0, 12) + '...' : cat)
+          .style('font-size', '10px');
+      });
+    }
   }
 
   function updateFilteredData() {
-  filteredData = data.filter(d => {
-    return selectedDimensions.every(dim => {
-      if (!brushes[dim]) return true;
-      
-      const value = d[dim];
-      const [min, max] = brushes[dim];
-      
-      if (yScales[dim].ticks) { // Numérico
-        return value >= Math.min(min, max) && value <= Math.max(min, max);
-      } // Para escalas CATEGÓRICAS (nominais - corrige a inversão)
-      else {
-        const domain = yScales[dim].domain();
-        const valueIndex = domain.indexOf(value);
-        const minIndex = domain.indexOf(min);
-        const maxIndex = domain.indexOf(max);
+    filteredData = data.filter(d => {
+      return selectedDimensions.every(dim => {
+        if (!brushes[dim]) return true;
         
-        // Aqui está a correção: inverte minIndex e maxIndex se necessário
-        return valueIndex >= Math.min(minIndex, maxIndex) && 
-               valueIndex <= Math.max(minIndex, maxIndex);
-      }
+        const value = d[dim];
+        const [min, max] = brushes[dim];
+        
+        if (yScales[dim].ticks) {
+          return value >= Math.min(min, max) && value <= Math.max(min, max);
+        } else {
+          const domain = yScales[dim].domain();
+          const valueIndex = domain.indexOf(value);
+          const minIndex = domain.indexOf(min);
+          const maxIndex = domain.indexOf(max);
+          
+          return valueIndex >= Math.min(minIndex, maxIndex) && 
+                 valueIndex <= Math.max(minIndex, maxIndex);
+        }
+      });
     });
-  });
 
-  d3.select(container).selectAll('.line')
-    .attr('stroke', d => 
-      filteredData.includes(d) ? '#4682b4' : '#e0e0e0' // Azul se filtrado, cinza se não
-    )
-    .attr('opacity', d => 
-      filteredData.includes(d) ? 0.7 : 0.05 // Opaco se filtrado, quase transparente se não
-    );
-}
+    d3.select(container).selectAll('.foreground path')
+      .attr('stroke', d => 
+        filteredData.some(fd => fd.id === d.id) ? colourScale(d.__colour) : '#e0e0e0'
+      )
+      .attr('opacity', d => 
+        filteredData.some(fd => fd.id === d.id) ? 0.7 : 0.05
+      );
+  }
 </script>
 
 <style>
@@ -262,6 +347,14 @@
     background: #eaeaea;
   }
 </style>
+<div style="margin-bottom:0.5rem">
+  <label style="font-size:0.85rem; margin-right:0.25rem">Color by:</label>
+  <select bind:value={colourVar}>
+    {#each allDimensions as dim}
+      <option value={dim}>{dim}</option>
+    {/each}
+  </select>
+</div>
 
 <div class="multiselect">
   <button class="dropdown-btn" on:click={toggleDropdown}>
