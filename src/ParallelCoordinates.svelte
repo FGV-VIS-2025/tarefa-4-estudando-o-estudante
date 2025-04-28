@@ -14,25 +14,45 @@
   let filteredData = [];
   let colourVariable = 'Salary Expectation'; // Valor inicial
 let colourScale; // A escala de cor será criada dinamicamente
+let selectedPalette = 'Turbo'; // Valor inicial
+
 function computeColourScale() {
   const vals = data.map(d => d[colourVariable]);
-
   const allNumbers = vals.every(v => typeof v === 'number' && !isNaN(v));
 
   if (allNumbers) {
-    // Escala contínua
     const extent = d3.extent(vals);
+    let interpolator;
+
+    switch (selectedPalette) {
+      case 'Viridis':
+        interpolator = d3.interpolateViridis;
+        break;
+      case 'Plasma':
+        interpolator = d3.interpolatePlasma;
+        break;
+      case 'Inferno':
+        interpolator = d3.interpolateInferno;
+        break;
+      case 'Blues':
+        interpolator = d3.interpolateBlues;
+        break;
+      default:
+        interpolator = d3.interpolateTurbo;
+    }
+
     colourScale = d3.scaleSequential()
       .domain(extent)
-      .interpolator(d3.interpolateBlues);
+      .interpolator(interpolator);
+
   } else {
-    // Escala categórica
     const categories = Array.from(new Set(vals));
     colourScale = d3.scaleOrdinal()
       .domain(categories)
-      .range(d3.schemeSet2); // ou d3.schemeCategory10
+      .range(d3.schemeSet2);
   }
 }
+
 
   function parseValue(str) {
     const s = str.trim();
@@ -484,10 +504,22 @@ $: if (data.length && selectedDimensions.length) {
 <div style="margin: 1rem 0;">
   <label for="color-select">Colorir por:</label>
   <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel(); }}>
+    
     {#each allDimensions as dim}
       <option value={dim}>{dim}</option>
     {/each}
   </select>
+  <div style="margin: 1rem 0;">
+    <label for="palette-select">Paleta de Cores:</label>
+    <select id="palette-select" bind:value={selectedPalette} on:change={() => { computeColourScale(); drawParallel(); }}>
+      <option value="Turbo">Turbo</option>
+      <option value="Viridis">Viridis</option>
+      <option value="Plasma">Plasma</option>
+      <option value="Inferno">Inferno</option>
+      <option value="Blues">Blues</option>
+    </select>
+  </div>
+  
 </div>
 
 <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
