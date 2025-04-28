@@ -21,14 +21,19 @@
   }
 
   onMount(async () => {
-    const raw = await d3.csv(import.meta.env.BASE_URL + 'data/student_attitude.csv');
-    data = raw.map(d =>
-      Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
-    );
-    allDimensions = Object.keys(data[0]);
-    selectedDimensions = [...allDimensions];
-    filteredData = [...data];
-  });
+  const raw = await d3.csv(import.meta.env.BASE_URL + 'data/student_attitude.csv');
+  
+  // Adiciona id incremental
+  data = raw.map((d, i) => ({
+    id: i + 1,
+    ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
+  }));
+
+  allDimensions = Object.keys(data[0]); // inclui o 'id' como opção
+  selectedDimensions = allDimensions.filter(d => d !== 'id'); // mas não seleciona 'id' por padrão
+  filteredData = [...data];
+});
+
 
   function toggleDropdown() { dropdownOpen = !dropdownOpen; }
   function selectAll() { selectedDimensions = [...allDimensions]; }
@@ -65,12 +70,96 @@
   }
 
   function dragended(event, d) {
-    d3.select(this).classed('active', false);
+  d3.select(this).classed('active', false);
 
-    d3.select(container).selectAll('.line')
-      .transition().duration(200)
-      .style('opacity', 0.7);
-  }
+  // Resetar filtros
+  brushes = {};
+  filteredData = [...data];
+
+  d3.select(container).selectAll('.line')
+    .transition().duration(300)
+    .attr('stroke', '#4682b4')
+    .attr('opacity', 0.7);
+
+  // Apagar todos os brushes visuais
+  d3.select(container).selectAll('.brush').remove();
+
+  // Redesenhar brushes zerados
+  const svg = d3.select(container).select('svg g'); // pega o grupo principal
+  selectedDimensions.forEach(dim => {
+    createBrush(svg, dim, 500 - 30 - 10); // você pode melhorar depois para usar height paramétrico
+  });
+}
+
+function clearFilters() {
+  brushes = {};
+  filteredData = [...data];
+
+  // Redefine as linhas
+  d3.select(container).selectAll('.line')
+    .transition().duration(300)
+    .attr('stroke', '#4682b4')
+    .attr('opacity', 0.7);
+
+  // Remove brushes visuais
+  d3.select(container).selectAll('.brush').remove();
+
+  // Redesenha brushes vazios
+  const svg = d3.select(container).select('svg g');
+  selectedDimensions.forEach(dim => {
+    createBrush(svg, dim, 500 - 30 - 10); 
+  });
+}
+
+function createBrush(svg, dim, height) {
+  const brush = d3.brushY()
+    .extent([[-10, 0], [10, height]])
+    .on('brush', function(event) {
+      if (event.selection) {
+        const [y0, y1] = event.selection;
+        const scale = yScales[dim];
+
+        if (scale.bandwidth) {
+          const domain = scale.domain();
+          const pixelToIndex = d3.scaleLinear()
+            .range([0, domain.length - 1])
+            .domain([height, 0]);
+
+          const index0 = Math.round(pixelToIndex(y0));
+          const index1 = Math.round(pixelToIndex(y1));
+
+          brushes[dim] = [
+            domain[Math.min(index0, index1)],
+            domain[Math.max(index0, index1)]
+          ];
+        } else {
+          brushes[dim] = [
+            Math.min(scale.invert(y0), scale.invert(y1)),
+            Math.max(scale.invert(y0), scale.invert(y1))
+          ];
+        }
+        updateFilteredData();
+      }
+    })
+    .on('end', function(event) {
+      if (!event.selection) {
+        delete brushes[dim];
+        updateFilteredData();
+      }
+    });
+
+  const gBrush = svg.append('g')
+    .attr('class', 'brush')
+    .attr('transform', `translate(${x(dim)},0)`)
+    .call(brush)
+    .call(g => g.select('.overlay').attr('width', 30))
+    .call(g => g.selectAll('.selection,.handle')
+      .attr('stroke', '#4682b4')
+      .attr('fill', '#4682b4')
+      .attr('fill-opacity', 0.2));
+
+  return gBrush;
+}
 
   $: if (data.length && selectedDimensions) {
     drawParallel();
@@ -145,74 +234,10 @@
         .text(d => d)
         .style('fill', 'black');
 
-  selectedDimensions.forEach(dim => {
-    const brush = d3.brushY()
-      .extent([[-10, 0], [10, height]])
-      .on('brush', function(event) {
-        if (event.selection) {
-          const [y0, y1] = event.selection;
-          const scale = yScales[dim];
-
-          if (yScales[dim].bandwidth) {
-            const domain = scale.domain();
-            const pixelToIndex = d3.scaleLinear()
-              .range([0, domain.length - 1])
-              .domain([height, 0]);
-
-            const index0 = Math.round(pixelToIndex(y0));
-            const index1 = Math.round(pixelToIndex(y1));
-
-            brushes[dim] = [
-              domain[Math.min(index0, index1)],
-              domain[Math.max(index0, index1)]
-            ];
-          } else {
-            brushes[dim] = [
-              Math.min(scale.invert(y0), scale.invert(y1)),
-              Math.max(scale.invert(y0), scale.invert(y1))
-            ];
-          }
-          updateFilteredData();
-        }
-      })
-      .on('end', function(event) {
-        if (!event.selection) {
-          delete brushes[dim];
-          filteredData = [...data];
-          updateFilteredData();
-        }
-      });
-
-    const gBrush = svg.append('g')
-      .attr('class', 'brush')
-      .attr('transform', `translate(${x(dim)},0)`)
-      .call(brush)
-      .call(g => g.select('.overlay').attr('width', 30))
-      .call(g => g.selectAll('.selection,.handle')
-        .attr('stroke', '#4682b4')
-        .attr('fill', '#4682b4')
-        .attr('fill-opacity', 0.2));
-
-    if (brushes[dim]) {
-      const scale = yScales[dim];
-      let y0, y1;
-      if (yScales[dim].bandwidth) {
-        const domain = scale.domain();
-        const idx0 = domain.indexOf(brushes[dim][0]);
-        const idx1 = domain.indexOf(brushes[dim][1]);
-        const pixelScale = d3.scaleLinear()
-          .domain([0, domain.length - 1])
-          .range([height, 0]);
-
-        y0 = pixelScale(idx0);
-        y1 = pixelScale(idx1);
-      } else {
-        y0 = scale(brushes[dim][0]);
-        y1 = scale(brushes[dim][1]);
-      }
-      gBrush.call(brush.move, [y0, y1]);
-    }
-  });
+        selectedDimensions.forEach(dim => {
+  createBrush(svg, dim, height);
+});
+;
 }
 
 
@@ -411,6 +436,8 @@
       <div class="actions">
         <button type="button" on:click={selectAll}>Selecionar tudo</button>
         <button type="button" on:click={clearAll}>Limpar tudo</button>
+        <button type="button" on:click={clearFilters}>Remover Filtros</button>
+        
       </div>
     </div>
   {/if}
