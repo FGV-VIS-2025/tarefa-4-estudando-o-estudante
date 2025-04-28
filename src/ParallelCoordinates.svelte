@@ -9,9 +9,7 @@
   let filterText = '';
   let dropdownOpen = false;
   let brushes = {};
-  let colourVar = '';
-  let colourScale;
-  let isNumericColour = false;
+
   let x, yScales, line;
   let filteredData = [];
 
@@ -24,337 +22,363 @@
 
   onMount(async () => {
     const raw = await d3.csv(import.meta.env.BASE_URL + 'data/student_attitude.csv');
-    data = raw.map(d => {
-      const parsed = Object.fromEntries(
-        Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]
-      ));
-      parsed.id = Math.random().toString(36).substr(2, 9); // Adiciona um ID único
-      return parsed;
-    });
-    allDimensions = Object.keys(data[0]).filter(d => d !== 'id');
+    data = raw.map(d =>
+      Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
+    );
+    allDimensions = Object.keys(data[0]);
     selectedDimensions = [...allDimensions];
-    colourVar = allDimensions[0];
     filteredData = [...data];
   });
 
-  function computeColourScale() {
-    const vals = data.map(d => d[colourVar]);
-    isNumericColour = vals.every(v => typeof v === 'number' && !isNaN(v));
+  function toggleDropdown() { dropdownOpen = !dropdownOpen; }
+  function selectAll() { selectedDimensions = [...allDimensions]; }
+  function clearAll() { selectedDimensions = []; }
 
-    if (isNumericColour) {
-      const [minVal, maxVal] = d3.extent(vals);
-      data.forEach(d => d.__colour = d[colourVar]);
-      return d3.scaleSequential(d3.interpolatePlasma).domain([minVal, maxVal]);
-    } else {
-      const categories = [...new Set(vals)];
-      data.forEach(d => d.__colour = d[colourVar]);
-      return d3.scaleOrdinal()
-        .domain(categories)
-        .range(d3.schemeTableau10);
-    }
+  function dragstarted(event, d) {
+    d3.select(this).raise().classed('active', true);
+
+    d3.select(container).selectAll('.line')
+      .transition().duration(200)
+      .style('opacity', 0.3);
   }
 
-  function toggleDropdown() {
-    dropdownOpen = !dropdownOpen;
+  function dragged(event, d) {
+    const dx = event.x;
+
+    d3.select(this).attr('transform', `translate(${dx},0)`);
+
+    selectedDimensions.sort((a, b) => {
+      if (a === d) return dx - x(b);
+      if (b === d) return x(a) - dx;
+      return x(a) - x(b);
+    });
+
+    x.domain(selectedDimensions);
+
+    d3.select(container).selectAll('.axis')
+      .transition().duration(200)
+      .attr('transform', d => `translate(${x(d)},0)`);
+
+    d3.select(container).selectAll('.line')
+      .transition().duration(200)
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
   }
 
-  function selectAll() {
-    selectedDimensions = [...allDimensions];
+  function dragended(event, d) {
+    d3.select(this).classed('active', false);
+
+    d3.select(container).selectAll('.line')
+      .transition().duration(200)
+      .style('opacity', 0.7);
   }
 
-  function clearAll() {
-    selectedDimensions = [];
-  }
-
-  $: if (data.length && selectedDimensions.length && colourVar) {
-    colourScale = computeColourScale();
+  $: if (data.length && selectedDimensions) {
     drawParallel();
   }
 
   function drawParallel() {
-    d3.select(container).selectAll('*').remove();
+  d3.select(container).selectAll('*').remove();
 
-    const margin = { top: 30, right: 10, bottom: 60, left: 10 };
-    const width = 900 - margin.left - margin.right;
-    const height = 500 - margin.top - margin.bottom;
+  const margin = { top: 30, right: 10, bottom: 10, left: 10 };
+  const width = 900 - margin.left - margin.right;
+  const height = 500 - margin.top - margin.bottom;
 
-    const svg = d3.select(container)
-      .append('svg')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', height + margin.top + margin.bottom + 60)
-      .append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`);
+  const svg = d3.select(container)
+    .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+    .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    x = d3.scalePoint()
-      .domain(selectedDimensions)
-      .range([0, width])
-      .padding(1);
+  x = d3.scalePoint()
+    .domain(selectedDimensions)
+    .range([0, width])
+    .padding(1);
 
-    yScales = {};
-    selectedDimensions.forEach(dim => {
-      const vals = data.map(d => d[dim]);
-      if (vals.every(v => typeof v === 'number')) {
-        yScales[dim] = d3.scaleLinear()
-          .domain(d3.extent(vals))
-          .range([height, 0])
-          .nice();
-      } else {
-        const cats = Array.from(new Set(vals));
-        yScales[dim] = d3.scalePoint()
-          .domain(cats)
-          .range([height, 0])
-          .padding(0.5);
-      }
-    });
+  yScales = {};
+  selectedDimensions.forEach(dim => {
+    const vals = data.map(d => d[dim]);
+    if (vals.every(v => typeof v === 'number')) {
+      yScales[dim] = d3.scaleLinear()
+        .domain(d3.extent(vals))
+        .range([height, 0])
+        .nice();
+    } else {
+      const cats = Array.from(new Set(vals));
+      yScales[dim] = d3.scalePoint()
+        .domain(cats)
+        .range([height, 0])
+        .padding(0.5);
+    }
+  });
 
-    line = d3.line();
+  line = d3.line();
 
-    // Linhas de fundo
-    svg.append('g').attr('class', 'background')
-      .selectAll('path')
-      .data(data)
-      .enter().append('path')
+  svg.selectAll('.line')
+    .data(data)
+    .enter().append('path')
+      .attr('class', 'line')
       .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
       .attr('fill', 'none')
-      .attr('stroke', d => colourScale(d.__colour))
+      .attr('stroke', '#4682b4')
       .attr('stroke-width', 1)
-      .attr('opacity', 0.15);
-
-    // Linhas principais
-    const foreground = svg.append('g').attr('class', 'foreground')
-      .selectAll('path')
-      .data(data)
-      .enter().append('path')
-      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-      .attr('fill', 'none')
-      .attr('stroke', d => colourScale(d.__colour))
-      .attr('stroke-width', 1.5)
       .attr('opacity', 0.7);
 
-    // Eixos
-    svg.selectAll('.axis')
-      .data(selectedDimensions).enter()
-      .append('g')
-        .attr('class', 'axis')
-        .attr('transform', d => `translate(${x(d)},0)`)
+  svg.selectAll('.axis')
+    .data(selectedDimensions, d => d)
+    .enter()
+    .append('g')
+      .attr('class', 'axis')
+      .attr('transform', d => `translate(${x(d)},0)`)
       .each(function(d) {
         d3.select(this).call(d3.axisLeft(yScales[d]));
       })
+      .call(
+        d3.drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended)
+      )
       .append('text')
         .style('text-anchor', 'middle')
         .attr('y', -9)
         .text(d => d)
         .style('fill', 'black');
 
-    // Brushes
-    selectedDimensions.forEach(dim => {
-      const brush = d3.brushY()
-        .extent([[-10, 0], [10, height]])
-        .on('brush', function(event) {
-          if (event.selection) {
-            const [y0, y1] = event.selection;
-            const scale = yScales[dim];
-            
-            if (scale.ticks) {
-              brushes[dim] = [
-                Math.min(scale.invert(y0), scale.invert(y1)),
-                Math.max(scale.invert(y0), scale.invert(y1))
-              ];
-            } else {
-              const domain = scale.domain();
-              const pixelToIndex = d3.scaleLinear()
-                .range([0, domain.length - 1])
-                .domain([height, 0]);
+  selectedDimensions.forEach(dim => {
+    const brush = d3.brushY()
+      .extent([[-10, 0], [10, height]])
+      .on('brush', function(event) {
+        if (event.selection) {
+          const [y0, y1] = event.selection;
+          const scale = yScales[dim];
 
-              const index0 = Math.round(pixelToIndex(y0));
-              const index1 = Math.round(pixelToIndex(y1));
-              
-              brushes[dim] = [
-                domain[Math.min(index0, index1)],
-                domain[Math.max(index0, index1)]
-              ];
-            }
-            updateFilteredData();
+          if (yScales[dim].bandwidth) {
+            const domain = scale.domain();
+            const pixelToIndex = d3.scaleLinear()
+              .range([0, domain.length - 1])
+              .domain([height, 0]);
+
+            const index0 = Math.round(pixelToIndex(y0));
+            const index1 = Math.round(pixelToIndex(y1));
+
+            brushes[dim] = [
+              domain[Math.min(index0, index1)],
+              domain[Math.max(index0, index1)]
+            ];
+          } else {
+            brushes[dim] = [
+              Math.min(scale.invert(y0), scale.invert(y1)),
+              Math.max(scale.invert(y0), scale.invert(y1))
+            ];
           }
-        })
-        .on('end', function(event) {
-          if (!event.selection) {
-            delete brushes[dim];
-            filteredData = [...data];
-            updateFilteredData();
-          }
-        });
-
-      svg.append('g')
-        .attr('class', 'brush')
-        .attr('transform', `translate(${x(dim)}, 0)`)
-        .call(brush)
-        .call(g => g.select('.overlay')
-          .attr('width', 20))
-        .call(g => g.selectAll('.selection,.handle')
-          .attr('stroke', '#4682b4')
-          .attr('fill', '#4682b4')
-          .attr('fill-opacity', 0.2));
-    });
-
-    // Legenda
-    const legend = svg.append('g')
-      .attr('transform', `translate(20, ${height + 20})`);
-
-    if (isNumericColour) {
-      const legendWidth = 200;
-      const legendHeight = 20;
-      
-      const defs = svg.append('defs');
-      const gradient = defs.append('linearGradient')
-        .attr('id', 'color-gradient')
-        .attr('x1', '0%')
-        .attr('y1', '0%')
-        .attr('x2', '100%')
-        .attr('y2', '0%');
-      
-      gradient.selectAll('stop')
-        .data(d3.range(0, 1.01, 0.1))
-        .enter().append('stop')
-        .attr('offset', d => `${d * 100}%`)
-        .attr('stop-color', d => d3.interpolatePlasma(d));
-      
-      legend.append('rect')
-        .attr('width', legendWidth)
-        .attr('height', legendHeight)
-        .style('fill', 'url(#color-gradient)');
-      
-      legend.append('g')
-        .attr('transform', `translate(0, ${legendHeight})`)
-        .call(d3.axisBottom(colourScale.copy()))
-        .select('.domain')
-        .attr('stroke', '#777');
-    } else {
-      const categories = [...new Set(data.map(d => d[colourVar]))];
-      const itemWidth = 100;
-      
-      categories.forEach((cat, i) => {
-        const g = legend.append('g')
-          .attr('transform', `translate(${i * itemWidth}, 0)`);
-        
-        g.append('circle')
-          .attr('r', 5)
-          .attr('fill', colourScale(cat));
-        
-        g.append('text')
-          .attr('x', 10)
-          .attr('y', 5)
-          .text(cat.length > 15 ? cat.substring(0, 12) + '...' : cat)
-          .style('font-size', '10px');
-      });
-    }
-  }
-
-  function updateFilteredData() {
-    filteredData = data.filter(d => {
-      return selectedDimensions.every(dim => {
-        if (!brushes[dim]) return true;
-        
-        const value = d[dim];
-        const [min, max] = brushes[dim];
-        
-        if (yScales[dim].ticks) {
-          return value >= Math.min(min, max) && value <= Math.max(min, max);
-        } else {
-          const domain = yScales[dim].domain();
-          const valueIndex = domain.indexOf(value);
-          const minIndex = domain.indexOf(min);
-          const maxIndex = domain.indexOf(max);
-          
-          return valueIndex >= Math.min(minIndex, maxIndex) && 
-                 valueIndex <= Math.max(minIndex, maxIndex);
+          updateFilteredData();
+        }
+      })
+      .on('end', function(event) {
+        if (!event.selection) {
+          delete brushes[dim];
+          filteredData = [...data];
+          updateFilteredData();
         }
       });
-    });
 
-    d3.select(container).selectAll('.foreground path')
-      .attr('stroke', d => 
-        filteredData.some(fd => fd.id === d.id) ? colourScale(d.__colour) : '#e0e0e0'
-      )
-      .attr('opacity', d => 
-        filteredData.some(fd => fd.id === d.id) ? 0.7 : 0.05
-      );
-  }
+    const gBrush = svg.append('g')
+      .attr('class', 'brush')
+      .attr('transform', `translate(${x(dim)},0)`)
+      .call(brush)
+      .call(g => g.select('.overlay').attr('width', 30))
+      .call(g => g.selectAll('.selection,.handle')
+        .attr('stroke', '#4682b4')
+        .attr('fill', '#4682b4')
+        .attr('fill-opacity', 0.2));
+
+    if (brushes[dim]) {
+      const scale = yScales[dim];
+      let y0, y1;
+      if (yScales[dim].bandwidth) {
+        const domain = scale.domain();
+        const idx0 = domain.indexOf(brushes[dim][0]);
+        const idx1 = domain.indexOf(brushes[dim][1]);
+        const pixelScale = d3.scaleLinear()
+          .domain([0, domain.length - 1])
+          .range([height, 0]);
+
+        y0 = pixelScale(idx0);
+        y1 = pixelScale(idx1);
+      } else {
+        y0 = scale(brushes[dim][0]);
+        y1 = scale(brushes[dim][1]);
+      }
+      gBrush.call(brush.move, [y0, y1]);
+    }
+  });
+}
+
+
+  function updateFilteredData() {
+  filteredData = data.filter(d => {
+    return selectedDimensions.every(dim => {
+      if (!brushes[dim]) return true;
+
+      const value = d[dim];
+      const [min, max] = brushes[dim];
+
+      if (yScales[dim].bandwidth) {
+        const domain = yScales[dim].domain();
+        const valueIndex = domain.indexOf(value);
+        const minIndex = domain.indexOf(min);
+        const maxIndex = domain.indexOf(max);
+
+        return valueIndex >= Math.min(minIndex, maxIndex) &&
+               valueIndex <= Math.max(minIndex, maxIndex);
+      } else {
+        return value >= Math.min(min, max) && value <= Math.max(min, max);
+      }
+    });
+  });
+
+  d3.select(container).selectAll('.line')
+    .transition().duration(300)
+    .attr('stroke', d =>
+      filteredData.includes(d) ? '#000' : '#4682b4' // Preto para filtradas, azul claro para não-filtradas
+    )
+    .attr('opacity', d =>
+      filteredData.includes(d) ? 0.9 : 0.05 // Forte para filtradas, quase invisível para não-filtradas
+    );
+}
+
 </script>
 
 <style>
-  .multiselect {
-    position: relative;
-    display: inline-block;
-    font-family: sans-serif;
-  }
-  .dropdown-btn {
-    background: #fff;
-    border: 1px solid #ccc;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  .dropdown-btn:focus { outline: none; }
+.multiselect {
+  position: relative;
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+}
 
-  .dropdown-panel {
-    position: absolute;
-    top: 100%; left: 0;
-    background: #fff;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    margin-top: 0.25rem;
-    width: 260px;
-    z-index: 10;
-  }
-  .filter-input {
-    width: calc(100% - 1rem);
-    margin: 0.5rem;
-    padding: 0.3rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  }
-  .checkboxes {
-    max-height: 180px;
-    overflow-y: auto;
-    padding: 0.5rem;
-  }
-  .checkboxes label {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.3rem;
-    font-size: 0.9rem;
-  }
-  .checkboxes input {
-    margin-right: 0.5rem;
-  }
-  .actions {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem;
-    border-top: 1px solid #eee;
-  }
-  .actions button {
-    background: #f5f5f5;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  .actions button:hover {
-    background: #eaeaea;
-  }
+.dropdown-btn {
+  background: white;
+  border: 1px solid #ddd;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.dropdown-btn:hover {
+  background: #f9f9f9;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.dropdown-btn:focus {
+  outline: none;
+}
+
+.dropdown-panel {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-top: 0.5rem;
+  width: 260px;
+  z-index: 20;
+}
+
+.filter-input {
+  width: calc(100% - 1rem);
+  margin: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.checkboxes {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+.checkboxes label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  font-size: 13px;
+  color: #333;
+}
+.checkboxes input {
+  margin-right: 0.6rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-top: 1px solid #eee;
+}
+.actions button {
+  background: #f7f7f7;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.actions button:hover {
+  background: #ebebeb;
+}
+
+:global(svg) {
+  font-family: 'Inter', sans-serif;
+}
+
+:global(.line) {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  shape-rendering: geometricPrecision;
+  transition: stroke 0.4s, opacity 0.4s;
+}
+
+:global(.axis path),
+:global(.axis line) {
+  fill: none;
+  stroke: #ccc;
+  shape-rendering: crispEdges;
+}
+
+:global(.axis text) {
+  font-size: 12px;
+  fill: #555;
+}
+
+:global(.axis.active text) {
+  fill: #d43f3a;
+  font-weight: bold;
+}
+
+:global(.brush .selection) {
+  fill: #4682b4;
+  fill-opacity: 0.25; 
+  stroke: #4682b4;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+:global(.brush .handle) {
+  fill: #4682b4;
+  cursor: ns-resize; 
+}
+
+:global(.brush .overlay) {
+  cursor: crosshair; 
+  fill: none;
+  pointer-events: all;
+}
+
+
 </style>
-<div style="margin-bottom:0.5rem">
-  <label style="font-size:0.85rem; margin-right:0.25rem">Color by:</label>
-  <select bind:value={colourVar}>
-    {#each allDimensions as dim}
-      <option value={dim}>{dim}</option>
-    {/each}
-  </select>
-</div>
 
 <div class="multiselect">
   <button class="dropdown-btn" on:click={toggleDropdown}>
