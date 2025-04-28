@@ -12,6 +12,27 @@
 
   let x, yScales, line;
   let filteredData = [];
+  let colourVariable = 'Salary Expectation'; // Valor inicial
+let colourScale; // A escala de cor será criada dinamicamente
+function computeColourScale() {
+  const vals = data.map(d => d[colourVariable]);
+
+  const allNumbers = vals.every(v => typeof v === 'number' && !isNaN(v));
+
+  if (allNumbers) {
+    // Escala contínua
+    const extent = d3.extent(vals);
+    colourScale = d3.scaleSequential()
+      .domain(extent)
+      .interpolator(d3.interpolateBlues);
+  } else {
+    // Escala categórica
+    const categories = Array.from(new Set(vals));
+    colourScale = d3.scaleOrdinal()
+      .domain(categories)
+      .range(d3.schemeSet2); // ou d3.schemeCategory10
+  }
+}
 
   function parseValue(str) {
     const s = str.trim();
@@ -89,7 +110,8 @@
 
   d3.select(container).selectAll('.line')
     .transition().duration(300)
-    .attr('stroke', '#4682b4')
+    .attr('stroke', d => colourScale(d[colourVariable]))
+
     .attr('opacity', 0.7);
 
   // Apagar todos os brushes visuais
@@ -172,6 +194,11 @@ function createBrush(svg, dim, height) {
   return gBrush;
 }
 
+$: if (data.length && selectedDimensions.length) {
+  computeColourScale();
+  drawParallel();
+}
+
   $: if (data.length && selectedDimensions) {
     drawParallel();
   }
@@ -215,14 +242,15 @@ function createBrush(svg, dim, height) {
   line = d3.line();
 
   svg.selectAll('.line')
-    .data(data)
-    .enter().append('path')
-      .attr('class', 'line')
-      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-      .attr('fill', 'none')
-      .attr('stroke', '#4682b4')
-      .attr('stroke-width', 1)
-      .attr('opacity', 0.7);
+  .data(data)
+  .enter().append('path')
+    .attr('class', 'line')
+    .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+    .attr('fill', 'none')
+    .attr('stroke', d => colourScale(d[colourVariable]))  // ✅ usa a escala
+    .attr('stroke-width', 1)
+    .attr('opacity', 0.7);
+
 
   svg.selectAll('.axis')
     .data(selectedDimensions, d => d)
@@ -452,6 +480,14 @@ function createBrush(svg, dim, height) {
       </div>
     </div>
   {/if}
+</div>
+<div style="margin: 1rem 0;">
+  <label for="color-select">Colorir por:</label>
+  <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel(); }}>
+    {#each allDimensions as dim}
+      <option value={dim}>{dim}</option>
+    {/each}
+  </select>
 </div>
 
 <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
