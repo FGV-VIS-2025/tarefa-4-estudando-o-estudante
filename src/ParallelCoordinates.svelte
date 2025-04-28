@@ -23,16 +23,27 @@
   onMount(async () => {
   const raw = await d3.csv(import.meta.env.BASE_URL + 'data/student_attitude.csv');
   
-  // Adiciona id incremental
   data = raw.map((d, i) => ({
     id: i + 1,
     ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k.trim(), parseValue(v)]))
   }));
 
   allDimensions = Object.keys(data[0]); // inclui o 'id' como opção
-  selectedDimensions = allDimensions.filter(d => d !== 'id'); // mas não seleciona 'id' por padrão
+
+  // Defina aqui quais eixos aparecem inicialmente:
+  const initialSet = [
+    "Gender",
+    "Department",
+    "college mark",
+    "Stress Level"
+  ];
+
+  // Só adiciona no início os que existem no data
+  selectedDimensions = initialSet.filter(dim => allDimensions.includes(dim));
+
   filteredData = [...data];
 });
+
 
 
   function toggleDropdown() { dropdownOpen = !dropdownOpen; }
