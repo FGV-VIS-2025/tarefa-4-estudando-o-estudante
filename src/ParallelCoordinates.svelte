@@ -17,7 +17,14 @@ let colourScale; // A escala de cor será criada dinamicamente
 let selectedPalette = 'Turbo'; // Valor inicial
 let hoveredDatum = null;
 let selectedDatum = null;
+let removedData = new Set();
 
+function restoreAllData() {
+  removedData.clear();      // Limpa todos os IDs removidos
+  selectedDatum = null;     // Limpa qualquer seleção
+  computeColourScale();     // Recalcula a escala de cores
+  drawParallel();           // Redesenha o gráfico completo
+}
 
 function computeColourScale() {
   const vals = data.map(d => d[colourVariable]);
@@ -247,7 +254,7 @@ $: if (data.length && selectedDimensions.length) {
 
   yScales = {};
   selectedDimensions.forEach(dim => {
-    const vals = data.map(d => d[dim]);
+    const vals = data.filter(d => !removedData.has(d.id)).map(d => d[dim]);
     if (vals.every(v => typeof v === 'number')) {
       yScales[dim] = d3.scaleLinear()
         .domain(d3.extent(vals))
@@ -266,7 +273,7 @@ $: if (data.length && selectedDimensions.length) {
 
   svg.selectAll('.line')
   svg.selectAll('.line')
-  .data(data)
+  .data(data.filter(d => !removedData.has(d.id)))
   .enter().append('path')
     .attr('class', 'line')
     .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
@@ -542,6 +549,7 @@ $: if (data.length && selectedDimensions.length) {
 </div>
 
 <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
+
 {#if selectedDatum}
   <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
     <strong>Dados do ponto selecionado:</strong>
@@ -550,17 +558,25 @@ $: if (data.length && selectedDimensions.length) {
         <li><strong>{key}:</strong> {value}</li>
       {/each}
     </ul>
+
+    <button 
+      on:click={() => {
+        removedData.add(selectedDatum.id); // Marca como removido
+        selectedDatum = null;               // Limpa seleção
+        computeColourScale();               // Recalcula a escala de cor
+        drawParallel();                     // Redesenha
+      }}
+      style="margin-top: 0.5rem; background-color: #ff4d4f; color: white; padding: 0.4rem 0.8rem; border: none; border-radius: 5px; cursor: pointer;"
+    >
+      Remover este ponto
+    </button>
   </div>
 {/if}
-
-
-{#if hoveredDatum}
-  <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
-    <strong>Dados do ponto selecionado:</strong>
-    <ul>
-      {#each Object.entries(hoveredDatum) as [key, value]}
-        <li><strong>{key}:</strong> {value}</li>
-      {/each}
-    </ul>
-  </div>
-{/if}
+<div style="margin-top: 1rem;">
+  <button 
+    on:click={restoreAllData}
+    style="background-color: #4caf50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;"
+  >
+    Restaurar Todos
+  </button>
+</div>
