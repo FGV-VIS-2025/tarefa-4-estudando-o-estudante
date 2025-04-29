@@ -19,6 +19,20 @@ let hoveredDatum = null;
 let selectedDatum = null;
 let removedData = new Set();
 
+function updateAxisLabels() {
+  d3.select(container).selectAll('.axis').each(function(d) {
+    if (brushes[d]) {
+      d3.select(this).select('text')
+        .style('fill', '#d43f3a')
+        .style('font-weight', 'bold');
+    } else {
+      d3.select(this).select('text')
+        .style('fill', 'black')
+        .style('font-weight', 'normal');
+    }
+  });
+}
+
 function restoreAllData() {
   removedData.clear();      // Limpa todos os IDs removidos
   selectedDatum = null;     // Limpa qualquer seleção
@@ -293,6 +307,7 @@ $: if (data.length && selectedDimensions.length) {
         selectedDatum = d; // Seleciona novo ponto
       }
       drawParallel(); // Redesenhar para atualizar destaques
+      
     });
 
 
@@ -313,14 +328,18 @@ $: if (data.length && selectedDimensions.length) {
           .on('end', dragended)
       )
       .append('text')
-        .style('text-anchor', 'middle')
-        .attr('y', -9)
-        .text(d => d)
-        .style('fill', 'black');
+  .attr('class', 'axis-label')  // separa o estilo do label do eixo
+  .style('text-anchor', 'middle')
+  .attr('y', -9)
+  .text(d => d);
+
 
         selectedDimensions.forEach(dim => {
   createBrush(svg, dim, height);
 });
+updateAxisLabels();
+
+
 ;
 }
 
@@ -484,6 +503,16 @@ $: if (data.length && selectedDimensions.length) {
   cursor: crosshair; 
   fill: none;
   pointer-events: all;
+}
+:global(.axis text) {
+  font-size: 12px;
+  fill: #555; /* Todos os ticks em cinza */
+}
+
+:global(.axis-label) {
+  font-size: 13px;
+  fill: black; /* Só o nome do eixo em preto */
+  font-weight: bold;
 }
 
 
