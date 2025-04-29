@@ -223,7 +223,6 @@ function createBrush(svg, dim, height) {
   return gBrush;
 }
 
-
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
   drawParallel();
@@ -534,6 +533,7 @@ $: if (data.length && selectedDimensions.length) {
     {#each allDimensions as dim}
       <option value={dim}>{dim}</option>
     {/each}
+    
   </select>
   <div style="margin: 1rem 0;">
     <label for="palette-select">Paleta de Cores:</label>
@@ -545,6 +545,36 @@ $: if (data.length && selectedDimensions.length) {
       <option value="Blues">Blues</option>
     </select>
   </div>
+  {#if colourScale}
+  {#if typeof colourScale.interpolator === 'function'}
+    <!-- Legenda para escala contínua -->
+    <svg width="200" height="20" style="margin-top: 0.5rem;">
+      {#each Array(100) as _, i}
+        <rect
+          x={i * 2}
+          y="0"
+          width="2"
+          height="20"
+          fill={colourScale(colourScale.domain()[0] + i / 99 * (colourScale.domain()[1] - colourScale.domain()[0]))}
+        />
+      {/each}
+      <text x="0" y="35" font-size="12">{colourScale.domain()[0]}</text>
+      <text x="180" y="35" font-size="12" text-anchor="end">{colourScale.domain()[1]}</text>
+    </svg>
+  {:else}
+    <!-- Legenda para escala categórica -->
+    <div style="display: flex; flex-wrap: wrap; margin-top: 0.5rem;">
+      {#each colourScale.domain() as category}
+        <div style="display: flex; align-items: center; margin-right: 1rem; margin-bottom: 0.5rem;">
+          <div style="width: 14px; height: 14px; background-color: {colourScale(category)}; margin-right: 0.4rem; border: 1px solid #ccc;"></div>
+          <span style="font-size: 12px;">{category}</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
+{/if}
+
+
   
 </div>
 
