@@ -18,6 +18,7 @@ let selectedPalette = 'Turbo'; // Valor inicial
 let hoveredDatum = null;
 let selectedDatum = null;
 let removedData = new Set();
+let legendContainer;
 
 function updateAxisLabels() {
   d3.select(container).selectAll('.axis').each(function(d) {
@@ -225,6 +226,7 @@ function createBrush(svg, dim, height) {
     });
 
   const gBrush = svg.append('g')
+  
     .attr('class', 'brush')
     .attr('transform', `translate(${x(dim)},0)`)
     .call(brush)
@@ -235,11 +237,14 @@ function createBrush(svg, dim, height) {
       .attr('fill-opacity', 0.2));
 
   return gBrush;
+
+  
 }
 
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
   drawParallel();
+  drawLegend();
 }
 
   $: if (data.length && selectedDimensions) {
@@ -259,7 +264,7 @@ $: if (data.length && selectedDimensions.length) {
       .attr('height', height + margin.top + margin.bottom)
     .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
-
+     
   x = d3.scalePoint()
     .domain(selectedDimensions)
     .range([0, width])
@@ -283,6 +288,13 @@ $: if (data.length && selectedDimensions.length) {
   });
 
   line = d3.line();
+// Desenha fundo cinza claro atrás de tudo
+svg.append('rect')
+  .attr('x', -margin.left)   // Puxa para cobrir as margens
+  .attr('y', -margin.top)
+  .attr('width', width + margin.left + margin.right)
+  .attr('height', height + margin.top + margin.bottom)
+  .attr('fill', '#f0f0f0');
 
   svg.selectAll('.line')
   svg.selectAll('.line')
@@ -374,6 +386,60 @@ updateAxisLabels();
     .attr('opacity', d =>
       filteredData.includes(d) ? 0.9 : 0.05 // Forte para filtradas, quase invisível para não-filtradas
     );
+}
+function drawLegend() {
+  if (!colourScale) return;
+
+  d3.select(legendContainer).selectAll('*').remove();
+
+  const width = 20;
+  const height = 300;
+
+  const svg = d3.select(legendContainer)
+    .append('svg')
+    .attr('width', width + 50)
+    .attr('height', height + 40)
+    .append('g')
+    .attr('transform', 'translate(20,20)');
+
+  if (typeof colourScale.interpolator === 'function') {
+    // Continua, escala contínua
+    const defs = svg.append('defs');
+
+    const gradient = defs.append('linearGradient')
+      .attr('id', 'color-gradient')
+      .attr('x1', '0%')
+      .attr('y1', '100%')
+      .attr('x2', '0%')
+      .attr('y2', '0%');
+
+    const n = 10;
+    const domain = colourScale.domain();
+    for (let i = 0; i <= n; i++) {
+      gradient.append('stop')
+        .attr('offset', `${(i / n) * 100}%`)
+        .attr('stop-color', colourScale(domain[0] + i / n * (domain[1] - domain[0])));
+    }
+
+    svg.append('rect')
+      .attr('width', width)
+      .attr('height', height)
+      .style('fill', 'url(#color-gradient)');
+
+    const scale = d3.scaleLinear()
+      .domain([domain[0], domain[1]])
+      .range([height, 0]);
+
+    const axis = d3.axisRight(scale)
+      .ticks(5)
+      .tickSize(6)
+      .tickFormat(d3.format(".2~g")); // Formato bonito
+
+    svg.append('g')
+      .attr('transform', `translate(${width},0)`)
+      .call(axis)
+      .select(".domain").remove();
+  }
 }
 
 </script>
@@ -557,7 +623,7 @@ updateAxisLabels();
 </div>
 <div style="margin: 1rem 0;">
   <label for="color-select">Colorir por:</label>
-  <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel(); }}>
+  <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel();drawLegend(); }}>
     
     {#each allDimensions as dim}
       <option value={dim}>{dim}</option>
@@ -566,7 +632,7 @@ updateAxisLabels();
   </select>
   <div style="margin: 1rem 0;">
     <label for="palette-select">Paleta de Cores:</label>
-    <select id="palette-select" bind:value={selectedPalette} on:change={() => { computeColourScale(); drawParallel(); }}>
+    <select id="palette-select" bind:value={selectedPalette} on:change={() => { computeColourScale(); drawParallel();drawLegend(); }}>
       <option value="Turbo">Turbo</option>
       <option value="Viridis">Viridis</option>
       <option value="Plasma">Plasma</option>
@@ -607,7 +673,10 @@ updateAxisLabels();
   
 </div>
 
-<div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
+<div style="display: flex;">
+  <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
+  <div bind:this={legendContainer} style="width: 60px; height: 500px; margin-top: 30px; margin-left: 1rem;"></div>
+</div>
 
 {#if selectedDatum}
   <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
