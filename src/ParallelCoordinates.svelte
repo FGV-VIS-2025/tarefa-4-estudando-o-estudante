@@ -388,24 +388,23 @@ updateAxisLabels();
     );
 }
 function drawLegend() {
-  if (!colourScale) return;
+  if (!colourScale || !legendContainer) return;
 
   d3.select(legendContainer).selectAll('*').remove();
 
-  const width = 20;
+  const width = 60;
   const height = 300;
 
   const svg = d3.select(legendContainer)
     .append('svg')
-    .attr('width', width + 50)
+    .attr('width', width)
     .attr('height', height + 40)
     .append('g')
     .attr('transform', 'translate(20,20)');
 
+  // CONTÍNUA
   if (typeof colourScale.interpolator === 'function') {
-    // Continua, escala contínua
     const defs = svg.append('defs');
-
     const gradient = defs.append('linearGradient')
       .attr('id', 'color-gradient')
       .attr('x1', '0%')
@@ -413,8 +412,8 @@ function drawLegend() {
       .attr('x2', '0%')
       .attr('y2', '0%');
 
-    const n = 10;
     const domain = colourScale.domain();
+    const n = 10;
     for (let i = 0; i <= n; i++) {
       gradient.append('stop')
         .attr('offset', `${(i / n) * 100}%`)
@@ -422,7 +421,7 @@ function drawLegend() {
     }
 
     svg.append('rect')
-      .attr('width', width)
+      .attr('width', 20)
       .attr('height', height)
       .style('fill', 'url(#color-gradient)');
 
@@ -433,14 +432,36 @@ function drawLegend() {
     const axis = d3.axisRight(scale)
       .ticks(5)
       .tickSize(6)
-      .tickFormat(d3.format(".2~g")); // Formato bonito
+      .tickFormat(d3.format(".2~g"));
 
     svg.append('g')
-      .attr('transform', `translate(${width},0)`)
+      .attr('transform', `translate(22,0)`)
       .call(axis)
       .select(".domain").remove();
+
+  } else {
+    // CATEGÓRICA
+    const domain = colourScale.domain();
+    const itemHeight = 20;
+
+    domain.forEach((cat, i) => {
+      svg.append('rect')
+        .attr('x', 0)
+        .attr('y', i * itemHeight)
+        .attr('width', 14)
+        .attr('height', 14)
+        .attr('fill', colourScale(cat))
+        .attr('stroke', '#ccc');
+
+      svg.append('text')
+        .attr('x', 20)
+        .attr('y', i * itemHeight + 11)
+        .text(cat)
+        .style('font-size', '12px');
+    });
   }
 }
+
 
 </script>
 
