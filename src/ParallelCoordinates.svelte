@@ -19,6 +19,7 @@ let hoveredDatum = null;
 let selectedDatum = null;
 let removedData = new Set();
 let legendContainer;
+let brushMode = 'color'; // 'color' ou 'hide'
 
 function updateAxisLabels() {
   d3.select(container).selectAll('.axis').each(function(d) {
@@ -356,7 +357,7 @@ updateAxisLabels();
 }
 
 
-  function updateFilteredData() {
+function updateFilteredData() {
   filteredData = data.filter(d => {
     return selectedDimensions.every(dim => {
       if (!brushes[dim]) return true;
@@ -378,15 +379,20 @@ updateAxisLabels();
     });
   });
 
-  d3.select(container).selectAll('.line')
-    .transition().duration(300)
-    .attr('stroke', d =>
-      filteredData.includes(d) ? '#000' : '#4682b4' // Preto para filtradas, azul claro para não-filtradas
-    )
-    .attr('opacity', d =>
-      filteredData.includes(d) ? 0.9 : 0.05 // Forte para filtradas, quase invisível para não-filtradas
-    );
+  const lines = d3.select(container).selectAll('.line');
+
+  if (brushMode === 'color') {
+    lines
+      .transition().duration(300)
+      .attr('stroke', d => filteredData.includes(d) ? '#000' : '#4682b4')
+      .attr('opacity', d => filteredData.includes(d) ? 0.9 : 0.05);
+  } else if (brushMode === 'hide') {
+    lines
+      .transition().duration(300)
+      .attr('opacity', d => filteredData.includes(d) ? 0.9 : 0);
+  }
 }
+
 function drawLegend() {
   if (!colourScale || !legendContainer) return;
 
@@ -637,8 +643,12 @@ function drawLegend() {
         <button type="button" on:click={selectAll}>Selecionar tudo</button>
         <button type="button" on:click={clearAll}>Limpar tudo</button>
         <button type="button" on:click={clearFilters}>Remover Filtros</button>
-        
       </div>
+      <label for="brush-mode-select">Modo de Brushing:</label>
+      <select id="brush-mode-select" bind:value={brushMode}>
+        <option value="color">Colorir selecionados</option>
+        <option value="hide">Esconder não selecionados</option>
+      </select>
     </div>
   {/if}
 </div>
@@ -661,34 +671,7 @@ function drawLegend() {
       <option value="Blues">Blues</option>
     </select>
   </div>
-  {#if colourScale}
-  {#if typeof colourScale.interpolator === 'function'}
-    <!-- Legenda para escala contínua -->
-    <svg width="200" height="20" style="margin-top: 0.5rem;">
-      {#each Array(100) as _, i}
-        <rect
-          x={i * 2}
-          y="0"
-          width="2"
-          height="20"
-          fill={colourScale(colourScale.domain()[0] + i / 99 * (colourScale.domain()[1] - colourScale.domain()[0]))}
-        />
-      {/each}
-      <text x="0" y="35" font-size="12">{colourScale.domain()[0]}</text>
-      <text x="180" y="35" font-size="12" text-anchor="end">{colourScale.domain()[1]}</text>
-    </svg>
-  {:else}
-    <!-- Legenda para escala categórica -->
-    <div style="display: flex; flex-wrap: wrap; margin-top: 0.5rem;">
-      {#each colourScale.domain() as category}
-        <div style="display: flex; align-items: center; margin-right: 1rem; margin-bottom: 0.5rem;">
-          <div style="width: 14px; height: 14px; background-color: {colourScale(category)}; margin-right: 0.4rem; border: 1px solid #ccc;"></div>
-          <span style="font-size: 12px;">{category}</span>
-        </div>
-      {/each}
-    </div>
-  {/if}
-{/if}
+  
 
 
   
