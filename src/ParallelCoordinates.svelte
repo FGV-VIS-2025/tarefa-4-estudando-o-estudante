@@ -201,14 +201,13 @@ function createBrush(svg, dim, height) {
             Math.max(scale.invert(y0), scale.invert(y1))
           ];
         }
-        updateFilteredData();
       }
     })
     .on('end', function(event) {
       if (!event.selection) {
         delete brushes[dim];
-        updateFilteredData();
       }
+      updateFilteredData();
     });
 
   const gBrush = svg.append('g')
@@ -223,6 +222,7 @@ function createBrush(svg, dim, height) {
 
   return gBrush;
 }
+
 
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
