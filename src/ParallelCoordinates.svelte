@@ -15,6 +15,9 @@
   let colourVariable = 'Salary Expectation'; // Valor inicial
 let colourScale; // A escala de cor será criada dinamicamente
 let selectedPalette = 'Turbo'; // Valor inicial
+let hoveredDatum = null;
+let selectedDatum = null;
+
 
 function computeColourScale() {
   const vals = data.map(d => d[colourVariable]);
@@ -262,14 +265,30 @@ $: if (data.length && selectedDimensions.length) {
   line = d3.line();
 
   svg.selectAll('.line')
+  svg.selectAll('.line')
   .data(data)
   .enter().append('path')
     .attr('class', 'line')
     .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
     .attr('fill', 'none')
-    .attr('stroke', d => colourScale(d[colourVariable]))  // ✅ usa a escala
-    .attr('stroke-width', 1)
-    .attr('opacity', 0.7);
+    .attr('stroke', d => d === selectedDatum ? 'red' : colourScale(d[colourVariable]))
+    .attr('stroke-width', d => d === selectedDatum ? 3 : 1.5)
+    .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
+    .on('mouseover', function(event, d) {
+      d3.select(this).attr('stroke-width', selectedDatum === d ? 3 : 2);
+    })
+    .on('mouseout', function(event, d) {
+      d3.select(this).attr('stroke-width', selectedDatum === d ? 3 : 1);
+    })
+    .on('click', function(event, d) {
+      if (selectedDatum === d) {
+        selectedDatum = null; // Se clicar de novo, desseleciona
+      } else {
+        selectedDatum = d; // Seleciona novo ponto
+      }
+      drawParallel(); // Redesenhar para atualizar destaques
+    });
+
 
 
   svg.selectAll('.axis')
@@ -523,3 +542,25 @@ $: if (data.length && selectedDimensions.length) {
 </div>
 
 <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
+{#if selectedDatum}
+  <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
+    <strong>Dados do ponto selecionado:</strong>
+    <ul>
+      {#each Object.entries(selectedDatum) as [key, value]}
+        <li><strong>{key}:</strong> {value}</li>
+      {/each}
+    </ul>
+  </div>
+{/if}
+
+
+{#if hoveredDatum}
+  <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
+    <strong>Dados do ponto selecionado:</strong>
+    <ul>
+      {#each Object.entries(hoveredDatum) as [key, value]}
+        <li><strong>{key}:</strong> {value}</li>
+      {/each}
+    </ul>
+  </div>
+{/if}
