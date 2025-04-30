@@ -2,6 +2,7 @@
   import Header from './components/Header.svelte';
   import Viz1 from './components/Viz1.svelte';
   import Footer from './components/Footer.svelte';
+  import Navbar from './components/Navbar.svelte';
   import ParallelCoordinates from './ParallelCoordinates.svelte';
   import { onMount } from 'svelte';
   onMount(() => console.log('🧪 Teste montou'));
@@ -9,6 +10,7 @@
 </script>
 
 <main>
+  <Navbar />
   <Header />
   <section class="content">
     <h2>Análise Visual</h2>
