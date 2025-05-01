@@ -9,6 +9,7 @@
   let filterText = '';
   let dropdownOpen = false;
   let brushes = {};
+  let scatterContainer;
 
   let x, yScales, line;
   let filteredData = [];
@@ -20,6 +21,8 @@ let selectedDatum = null;
 let removedData = new Set();
 let legendContainer;
 let brushMode = 'color'; // 'color' ou 'hide'
+let xVar = 'college mark';
+let yVar = 'Stress Level';
 
 function updateAxisLabels() {
   d3.select(container).selectAll('.axis').each(function(d) {
@@ -494,7 +497,59 @@ function drawLegend() {
     });
   }
 }
+$: if (data.length && xVar && yVar) {
+  drawScatterplot();
+}
+function drawScatterplot() {
+  d3.select(scatterContainer).selectAll('*').remove();
 
+  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const width = 700 - margin.left - margin.right;
+  const height = 400 - margin.top - margin.bottom;
+
+  const svg = d3.select(scatterContainer)
+    .append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const plotData = filteredData.filter(d => 
+    typeof d[xVar] === 'number' && 
+    typeof d[yVar] === 'number' && 
+    !removedData.has(d.id)
+  );
+
+  const x = d3.scaleLinear()
+    .domain(d3.extent(plotData, d => d[xVar])).nice()
+    .range([0, width]);
+
+  const y = d3.scaleLinear()
+    .domain(d3.extent(plotData, d => d[yVar])).nice()
+    .range([height, 0]);
+
+  svg.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x));
+
+  svg.append('g')
+    .call(d3.axisLeft(y));
+
+  svg.selectAll('circle')
+    .data(plotData)
+    .enter().append('circle')
+    .attr('cx', d => x(d[xVar]))
+    .attr('cy', d => y(d[yVar]))
+    .attr('r', d => selectedDatum && selectedDatum.id === d.id ? 6 : 4)
+    .attr('fill', d => d === selectedDatum ? 'red' : colourScale(d[colourVariable]))
+    .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
+    .style('cursor', 'pointer')
+    .on('click', (event, d) => {
+      selectedDatum = selectedDatum === d ? null : d;
+      drawParallel(); // destaca no paralelo
+      drawScatterplot(); // destaca aqui também
+    });
+}
 
 </script>
 
@@ -804,6 +859,28 @@ function drawLegend() {
     </button>
   </div>
 {/if}
+<div style="max-width: 900px; margin: 2rem auto;">
+  <h3 style="text-align: center;">Gráfico de Dispersão</h3>
+  <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
+    <label>
+      Eixo X:
+      <select bind:value={xVar}>
+        {#each allDimensions as dim}
+          <option value={dim}>{dim}</option>
+        {/each}
+      </select>
+    </label>
+    <label>
+      Eixo Y:
+      <select bind:value={yVar}>
+        {#each allDimensions as dim}
+          <option value={dim}>{dim}</option>
+        {/each}
+      </select>
+    </label>
+  </div>
+  <div bind:this={scatterContainer}></div>
+</div>
 
 <!-- ♻️ Botão de restaurar -->
 <div style="text-align: center; margin-top: 1rem;">
