@@ -109,6 +109,8 @@ function computeColourScale() {
   selectedDimensions = initialSet.filter(dim => allDimensions.includes(dim));
 
   filteredData = [...data];
+  colourVariable = 'college mark';
+
 });
 
 
@@ -310,15 +312,24 @@ $: if (data.length && selectedDimensions.length) {
       .attr('stroke-width', d => d === selectedDatum ? 3 : 2.5)
       .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
       .on('mouseover', function(event, d) {
+        d3.selectAll('.line')
+          .transition().duration(150)
+          .attr('opacity', l => (l === d ? 1 : 0.05));
+
         d3.select(this)
           .transition().duration(150)
-          .attr('stroke-width', selectedDatum === d ? 3 : 2.8);
+          .attr('stroke-width', 3);
       })
       .on('mouseout', function(event, d) {
+        d3.selectAll('.line')
+          .transition().duration(150)
+          .attr('opacity', l => (l === selectedDatum ? 1 : 0.7));
+
         d3.select(this)
           .transition().duration(150)
-          .attr('stroke-width', selectedDatum === d ? 3 : 2.5);
+          .attr('stroke-width', d => d === selectedDatum ? 3 : 2.5);
       })
+
 
 
       .on('click', function(event, d) {
@@ -627,6 +638,11 @@ function drawLegend() {
 
 </style>
 
+<svelte:head>
+  <title>Visualização: Student Attitude and Behavior</title>
+  <meta name="description" content="Gráfico interativo de coordenadas paralelas com filtros, coloração e brushing para explorar dados de comportamento estudantil." />
+</svelte:head>
+
 <!-- 📘 Texto introdutório -->
 <div style="max-width: 900px; margin: 2rem auto; font-family: 'Inter', sans-serif; line-height: 1.6; font-size: 15px; color: #333;">
   <p>
@@ -659,7 +675,6 @@ function drawLegend() {
   </ul>
 </div>
 
-<!-- 🎯 Título -->
 <h2 style="text-align: center; margin-top: 2rem; font-family: 'Inter', sans-serif;">
   Visualização de Coordenadas Paralelas Interativas
 </h2>
