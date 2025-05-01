@@ -1,48 +1,45 @@
 <script>
-  import Header from './components/Header.svelte';
-  import Viz1 from './components/Viz1.svelte';
-  import Footer from './components/Footer.svelte';
+  import Home from './components/Home.svelte';
   import ParallelCoordinates from './ParallelCoordinates.svelte';
-  import { onMount } from 'svelte';
-  onMount(() => console.log('🧪 Teste montou'));
 
+  let showHome = true;
 </script>
 
-<main>
-  <Header />
-  <section class="content">
-    <h2>Análise Visual</h2>
-    <p>Explore a relação entre desempenho acadêmico e hábitos de estudo dos alunos com visualizações interativas.</p>
-    <h2>📊 Student Attitude and Behavior Dataset 🎓</h2>
-<p>
-  This dataset contains information collected from university students through a Google form.
-  It includes details such as:
-</p>
-<ul>
-  <li>Certification courses</li>
-  <li>Gender</li>
-  <li>Department</li>
-  <li>Height (in cm)</li>
-  <li>Weight (in kg)</li>
-  <li>Marks in 10th and 12th grade</li>
-  <li>College marks</li>
-  <li>Hobbies</li>
-  <li>Daily studying time</li>
-  <li>Preferred study environment</li>
-  <li>Salary expectations</li>
-  <li>Satisfaction with their degree</li>
-  <li>Willingness to pursue a career related to their degree</li>
-  <li>Social media and video usage</li>
-  <li>Traveling time</li>
-  <li>Stress levels</li>
-  <li>Financial status</li>
-</ul>
-<p>
-  The dataset aims to provide insights into student behavior and can be used for analysis and research purposes.
-</p>
-  <h2> ParallelCoordinates</h2>
-    <ParallelCoordinates />
-  </section>
-  <Footer />
-</main>
+<style>
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: #1e3a8a;
+    color: white;
+  }
+  button.logo,
+  button.link {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+  }
+  button.logo:hover,
+  button.link:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+</style>
 
+<nav>
+  <button type="button" class="logo" on:click={() => showHome = true}>
+    Comportamento Estudantil
+  </button>
+  <button type="button" class="link" on:click={() => showHome = false}>
+    Visualização
+  </button>
+</nav>
+
+{#if showHome}
+  <Home onStart={() => showHome = false} />
+{:else}
+  <ParallelCoordinates />
+{/if}
