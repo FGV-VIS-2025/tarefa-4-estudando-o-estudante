@@ -256,7 +256,7 @@ $: if (data.length && selectedDimensions.length) {
   d3.select(container).selectAll('*').remove();
 
   const margin = { top: 30, right: 10, bottom: 10, left: 10 };
-  const width = 900 - margin.left - margin.right;
+  const width = 700 - margin.left - margin.right;
   const height = 500 - margin.top - margin.bottom;
 
   const svg = d3.select(container)
@@ -398,15 +398,19 @@ function drawLegend() {
 
   d3.select(legendContainer).selectAll('*').remove();
 
-  const width = 60;
+  const width = 200;
   const height = 300;
-
   const svg = d3.select(legendContainer)
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height + 40)
-    .append('g')
-    .attr('transform', 'translate(20,20)');
+  .append('svg')
+  .attr('width', width)
+  .attr('height', height + 40)
+
+  // const svg = d3.select(legendContainer)
+  //   .append('svg')
+  //   .attr('width', width)
+  //   .attr('height', height + 40)
+  //   .append('g')
+  //   .attr('transform', 'translate(20,20)');
 
   // CONTÍNUA
   if (typeof colourScale.interpolator === 'function') {
@@ -611,79 +615,148 @@ function drawLegend() {
 
 </style>
 
-<div class="multiselect">
-  <button class="dropdown-btn" on:click={toggleDropdown}>
-    {selectedDimensions.length === 0
-      ? 'Escolher variáveis'
-      : `${selectedDimensions.length} selecionada(s)`}
-  </button>
-  {#if dropdownOpen}
-    <div class="dropdown-panel">
-      <input
-        class="filter-input"
-        type="text"
-        placeholder="Filtrar..."
-        bind:value={filterText}
-      />
-      <div class="checkboxes">
-        {#each allDimensions
-                     .filter(dim => dim.toLowerCase().includes(filterText.toLowerCase()))
-               as dim}
-          <label>
-            <input
-              type="checkbox"
-              bind:group={selectedDimensions}
-              value={dim}
-            />
-            {dim}
-          </label>
+<!-- 📘 Texto introdutório -->
+<div style="max-width: 900px; margin: 2rem auto; font-family: 'Inter', sans-serif; line-height: 1.6; font-size: 15px; color: #333;">
+  <p>
+    Aqui podemos explorar padrões em cima do conjunto de dados <strong>Student Attitude and Behavior</strong>,
+    disponível em <a href="https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior" target="_blank" style="color: #1a73e8;">Kaggle</a>.
+    Abaixo apresentamos uma <strong>visualização de coordenadas paralelas interativa</strong> com diversas funcionalidades úteis para análise exploratória de dados multidimensionais.
+  </p>
+
+  <p>
+    <strong>📊 O que são coordenadas paralelas?</strong><br>
+    É uma técnica de visualização que permite representar dados com múltiplas variáveis (dimensões) simultaneamente. 
+    Cada linha representa um indivíduo (ou ponto de dado) e cada eixo paralelo representa uma variável.
+    Isso nos permite detectar padrões, correlações, outliers e agrupamentos entre variáveis de forma visual.
+  </p>
+
+  <p><strong>✨ Funcionalidades disponíveis:</strong></p>
+  <ul>
+    <li><strong>Escolha de colunas:</strong> selecione quais variáveis deseja visualizar.</li>
+    <li><strong>Filtragem (Brushing):</strong> clique e arraste em um eixo para selecionar valores. Dois modos disponíveis:
+      <ul>
+        <li><em>Colorir selecionados</em>: destaca os pontos dentro do filtro.</li>
+        <li><em>Esconder não selecionados</em>: oculta os dados fora do filtro.</li>
+      </ul>
+    </li>
+    <li><strong>Coloração por variável:</strong> use qualquer variável quantitativa ou qualitativa para colorir as linhas.</li>
+    <li><strong>Paletas de cor:</strong> escolha entre esquemas como Turbo, Viridis, Plasma e outros.</li>
+    <li><strong>Interação com linhas:</strong> clique em uma linha para ver seus dados e removê-la temporariamente.</li>
+    <li><strong>Restaurar visualização:</strong> botão dedicado para reexibir todos os dados removidos.</li>
+    <li><strong>Reordenação de eixos:</strong> arraste os eixos com o mouse para reorganizar as variáveis.</li>
+  </ul>
+</div>
+
+<!-- 🎯 Título -->
+<h2 style="text-align: center; margin-top: 2rem; font-family: 'Inter', sans-serif;">
+  Visualização de Coordenadas Paralelas Interativas
+</h2>
+
+<!-- 🎨 Layout geral: legenda | gráfico | controles -->
+<div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; font-family: 'Inter', sans-serif;">
+<div style="display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.5rem;">
+  <div style="font-size: 13px; font-weight: bold; margin-bottom: 0.5rem;">
+    Legenda de Cores
+  </div>
+  <div bind:this={legendContainer} style="width: 60px; height: 500px;"></div>
+</div>
+
+
+  <!-- 📈 Gráfico com botão flutuante -->
+  <div style="position: relative;">
+    <div bind:this={container} style="height: 600px;"></div>
+
+    <button 
+      type="button" 
+      on:click={clearFilters}
+      style="position: absolute; bottom: 10px; right: 10px; background-color: #ff9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;"
+    >
+      Remover Filtros
+    </button>
+  </div>
+
+  <!-- 🎛️ Painel de controles à direita -->
+  <div style="min-width: 200px; font-size: 14px;">
+    
+    <!-- Seletor de colunas -->
+    <div class="multiselect" style="margin-bottom: 1.5rem;">
+      <button class="dropdown-btn" on:click={toggleDropdown}>
+        {selectedDimensions.length === 0
+          ? 'Escolher variáveis'
+          : `${selectedDimensions.length} selecionada(s)`}
+      </button>
+      {#if dropdownOpen}
+        <div class="dropdown-panel">
+          <input
+            class="filter-input"
+            type="text"
+            placeholder="Filtrar..."
+            bind:value={filterText}
+          />
+          <div class="checkboxes">
+            {#each allDimensions
+                         .filter(dim => dim.toLowerCase().includes(filterText.toLowerCase()))
+                   as dim}
+              <label>
+                <input
+                  type="checkbox"
+                  bind:group={selectedDimensions}
+                  value={dim}
+                />
+                {dim}
+              </label>
+            {/each}
+          </div>
+          <div class="actions">
+            <button type="button" on:click={selectAll}>Selecionar tudo</button>
+            <button type="button" on:click={clearAll}>Limpar tudo</button>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Colorir por -->
+    <div style="margin-bottom: 1rem;">
+      <label for="color-select" style="display: block; margin-bottom: 0.3rem;"><strong>Colorir por:</strong></label>
+      <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel(); drawLegend(); }}
+        style="width: 180px; padding: 0.3rem; font-size: 13px;">
+        {#each allDimensions as dim}
+          <option value={dim}>{dim}</option>
         {/each}
-      </div>
-      <div class="actions">
-        <button type="button" on:click={selectAll}>Selecionar tudo</button>
-        <button type="button" on:click={clearAll}>Limpar tudo</button>
-        <button type="button" on:click={clearFilters}>Remover Filtros</button>
-      </div>
-      <label for="brush-mode-select">Modo de Brushing:</label>
-      <select id="brush-mode-select" bind:value={brushMode}>
+      </select>
+    </div>
+
+    <!-- Paleta -->
+    <div style="margin-bottom: 1rem;">
+      <label for="palette-select" style="display: block; margin-bottom: 0.3rem;"><strong>Paleta:</strong></label>
+      <select id="palette-select" bind:value={selectedPalette} on:change={() => { computeColourScale(); drawParallel(); drawLegend(); }}
+        style="width: 180px; padding: 0.3rem; font-size: 13px;">
+        <option value="Turbo">Turbo</option>
+        <option value="Viridis">Viridis</option>
+        <option value="Plasma">Plasma</option>
+        <option value="Inferno">Inferno</option>
+        <option value="Blues">Blues</option>
+      </select>
+    </div>
+
+    <!-- Brushing -->
+    <div>
+      <label for="brush-mode-select" style="display: block; margin-bottom: 0.3rem;"><strong>Brushing:</strong></label>
+      <select 
+        id="brush-mode-select" 
+        bind:value={brushMode}
+        style="width: 180px; padding: 0.3rem; font-size: 13px;"
+      >
         <option value="color">Colorir selecionados</option>
         <option value="hide">Esconder não selecionados</option>
       </select>
     </div>
-  {/if}
-</div>
-<div style="margin: 1rem 0;">
-  <label for="color-select">Colorir por:</label>
-  <select id="color-select" bind:value={colourVariable} on:change={() => { computeColourScale(); drawParallel();drawLegend(); }}>
-    
-    {#each allDimensions as dim}
-      <option value={dim}>{dim}</option>
-    {/each}
-    
-  </select>
-  <div style="margin: 1rem 0;">
-    <label for="palette-select">Paleta de Cores:</label>
-    <select id="palette-select" bind:value={selectedPalette} on:change={() => { computeColourScale(); drawParallel();drawLegend(); }}>
-      <option value="Turbo">Turbo</option>
-      <option value="Viridis">Viridis</option>
-      <option value="Plasma">Plasma</option>
-      <option value="Inferno">Inferno</option>
-      <option value="Blues">Blues</option>
-    </select>
   </div>
-  
-
-
-  
 </div>
 
-<div style="display: flex;">
-  <div bind:this={container} style="height: 600px; margin-top: 1rem;"></div>
-  <div bind:this={legendContainer} style="width: 60px; height: 500px; margin-top: 30px; margin-left: 1rem;"></div>
-</div>
-
+<!-- 🔁 Detalhes do ponto selecionado -->
 {#if selectedDatum}
-  <div style="margin-top: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
+  <div style="max-width: 900px; margin: 2rem auto; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
     <strong>Dados do ponto selecionado:</strong>
     <ul>
       {#each Object.entries(selectedDatum) as [key, value]}
@@ -693,10 +766,10 @@ function drawLegend() {
 
     <button 
       on:click={() => {
-        removedData.add(selectedDatum.id); // Marca como removido
-        selectedDatum = null;               // Limpa seleção
-        computeColourScale();               // Recalcula a escala de cor
-        drawParallel();                     // Redesenha
+        removedData.add(selectedDatum.id);
+        selectedDatum = null;
+        computeColourScale();
+        drawParallel();
       }}
       style="margin-top: 0.5rem; background-color: #ff4d4f; color: white; padding: 0.4rem 0.8rem; border: none; border-radius: 5px; cursor: pointer;"
     >
@@ -704,7 +777,9 @@ function drawLegend() {
     </button>
   </div>
 {/if}
-<div style="margin-top: 1rem;">
+
+<!-- ♻️ Botão de restaurar -->
+<div style="text-align: center; margin-top: 1rem;">
   <button 
     on:click={restoreAllData}
     style="background-color: #4caf50; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;"
