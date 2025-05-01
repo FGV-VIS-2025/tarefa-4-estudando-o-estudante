@@ -289,42 +289,55 @@ $: if (data.length && selectedDimensions.length) {
   });
 
   line = d3.line();
-// Desenha fundo cinza claro atrás de tudo
-svg.append('rect')
-  .attr('x', -margin.left)   // Puxa para cobrir as margens
-  .attr('y', -margin.top)
-  .attr('width', width + margin.left + margin.right)
-  .attr('height', height + margin.top + margin.bottom)
-  .attr('fill', '#f0f0f0');
 
-  svg.selectAll('.line')
-  svg.selectAll('.line')
-  .data(data.filter(d => !removedData.has(d.id)))
-  .enter().append('path')
-    .attr('class', 'line')
-    .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
-    .attr('fill', 'none')
-    .attr('stroke', d => d === selectedDatum ? 'red' : colourScale(d[colourVariable]))
-    .attr('stroke-width', d => d === selectedDatum ? 3 : 1.5)
-    .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
-    .on('mouseover', function(event, d) {
-      d3.select(this).attr('stroke-width', selectedDatum === d ? 3 : 2);
-    })
-    .on('mouseout', function(event, d) {
-      d3.select(this).attr('stroke-width', selectedDatum === d ? 3 : 1);
-    })
-    .on('click', function(event, d) {
-      if (selectedDatum === d) {
-        selectedDatum = null; // Se clicar de novo, desseleciona
-      } else {
-        selectedDatum = d; // Seleciona novo ponto
-      }
-      drawParallel(); // Redesenhar para atualizar destaques
-      
-    });
+  // Fundo cinza claro
+  svg.append('rect')
+    .attr('x', -margin.left)
+    .attr('y', -margin.top)
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom)
+    .attr('fill', '#f0f0f0');
+
+  // Desenhar linhas
+  const allLines = svg.selectAll('.line')
+    .data(data.filter(d => !removedData.has(d.id)))
+    .enter().append('path')
+      .attr('class', 'line')
+      .style('cursor', 'pointer')
+      .attr('d', d => line(selectedDimensions.map(p => [x(p), yScales[p](d[p])])))
+      .attr('fill', 'none')
+      .attr('stroke', d => d === selectedDatum ? 'red' : colourScale(d[colourVariable]))
+      .attr('stroke-width', d => d === selectedDatum ? 3 : 2.5)
+      .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
+      .on('mouseover', function(event, d) {
+        d3.select(this)
+          .transition().duration(150)
+          .attr('stroke-width', selectedDatum === d ? 3 : 2.8);
+      })
+      .on('mouseout', function(event, d) {
+        d3.select(this)
+          .transition().duration(150)
+          .attr('stroke-width', selectedDatum === d ? 3 : 2.5);
+      })
 
 
+      .on('click', function(event, d) {
+        if (selectedDatum === d) {
+          selectedDatum = null;
+        } else {
+          selectedDatum = d;
+        }
+        drawParallel(); // Redesenha com a nova seleção
+      });
 
+  // Se tiver linha selecionada, traz para frente
+  if (selectedDatum) {
+    allLines
+      .filter(d => d === selectedDatum)
+      .raise();
+  }
+
+  // Eixos
   svg.selectAll('.axis')
     .data(selectedDimensions, d => d)
     .enter()
@@ -341,20 +354,19 @@ svg.append('rect')
           .on('end', dragended)
       )
       .append('text')
-  .attr('class', 'axis-label')  // separa o estilo do label do eixo
-  .style('text-anchor', 'middle')
-  .attr('y', -9)
-  .text(d => d);
+        .attr('class', 'axis-label')
+        .style('text-anchor', 'middle')
+        .attr('y', -9)
+        .text(d => d);
 
+  // Brushing
+  selectedDimensions.forEach(dim => {
+    createBrush(svg, dim, height);
+  });
 
-        selectedDimensions.forEach(dim => {
-  createBrush(svg, dim, height);
-});
-updateAxisLabels();
-
-
-;
+  updateAxisLabels();
 }
+
 
 
 function updateFilteredData() {
