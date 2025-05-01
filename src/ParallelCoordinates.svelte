@@ -500,10 +500,11 @@ function drawLegend() {
 $: if (data.length && xVar && yVar) {
   drawScatterplot();
 }
+
 function drawScatterplot() {
   d3.select(scatterContainer).selectAll('*').remove();
 
-  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const margin = { top: 20, right: 20, bottom: 40, left: 60 };
   const width = 700 - margin.left - margin.right;
   const height = 400 - margin.top - margin.bottom;
 
@@ -514,27 +515,87 @@ function drawScatterplot() {
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
-  const plotData = filteredData.filter(d => 
-    typeof d[xVar] === 'number' && 
-    typeof d[yVar] === 'number' && 
-    !removedData.has(d.id)
+  const plotData = filteredData.filter(d =>
+    d[xVar] !== undefined && d[yVar] !== undefined && !removedData.has(d.id)
   );
 
-  const x = d3.scaleLinear()
-    .domain(d3.extent(plotData, d => d[xVar])).nice()
-    .range([0, width]);
+  const isXNumeric = plotData.every(d => typeof d[xVar] === 'number' && !isNaN(d[xVar]));
+  const isYNumeric = plotData.every(d => typeof d[yVar] === 'number' && !isNaN(d[yVar]));
 
-  const y = d3.scaleLinear()
-    .domain(d3.extent(plotData, d => d[yVar])).nice()
-    .range([height, 0]);
+  const x = isXNumeric
+    ? d3.scaleLinear().domain(d3.extent(plotData, d => d[xVar])).nice().range([0, width])
+    : d3.scalePoint().domain([...new Set(plotData.map(d => d[xVar]))]).range([0, width]).padding(0.5);
 
+  const y = isYNumeric
+    ? d3.scaleLinear().domain(d3.extent(plotData, d => d[yVar])).nice().range([height, 0])
+    : d3.scalePoint().domain([...new Set(plotData.map(d => d[yVar]))]).range([height, 0]).padding(0.5);
+
+  // Eixos
   svg.append('g')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(x));
+    .call(isXNumeric ? d3.axisBottom(x) : d3.axisBottom(x).tickSize(0));
 
   svg.append('g')
-    .call(d3.axisLeft(y));
+    .call(isYNumeric ? d3.axisLeft(y) : d3.axisLeft(y).tickSize(0));
 
+  // --- BOXPLOTS ---
+  const boxplotMode = (isXNumeric !== isYNumeric); // só ativa se for categórico x numérico
+  if (boxplotMode) {
+    const catVar = isXNumeric ? yVar : xVar;
+    const numVar = isXNumeric ? xVar : yVar;
+    const scaleCat = isXNumeric ? y : x;
+    const scaleNum = isXNumeric ? x : y;
+    const grouped = d3.group(plotData, d => d[catVar]);
+
+    function getBoxStats(values) {
+      const sorted = values.slice().sort(d3.ascending);
+      const q1 = d3.quantileSorted(sorted, 0.25);
+      const median = d3.quantileSorted(sorted, 0.5);
+      const q3 = d3.quantileSorted(sorted, 0.75);
+      const iqr = q3 - q1;
+      const min = d3.min(sorted.filter(v => v >= q1 - 1.5 * iqr));
+      const max = d3.max(sorted.filter(v => v <= q3 + 1.5 * iqr));
+      return { q1, median, q3, min, max };
+    }
+
+    const boxWidth = 20;
+
+    grouped.forEach((group, cat) => {
+      const values = group.map(d => d[numVar]).filter(v => typeof v === 'number');
+      if (!values.length) return;
+      const stats = getBoxStats(values);
+      const pos = scaleCat(cat);
+
+      // Caixa interquartil
+      svg.append('rect')
+        .attr(isXNumeric ? 'y' : 'x', pos - boxWidth / 2)
+        .attr(isXNumeric ? 'x' : 'y', scaleNum(stats.q1))
+        .attr(isXNumeric ? 'height' : 'width', boxWidth)
+        .attr(isXNumeric ? 'width' : 'height', scaleNum(stats.q3) - scaleNum(stats.q1))
+        .attr('fill', '#999')
+        .attr('opacity', 0.3);
+
+      // Mediana
+      svg.append('line')
+        .attr(isXNumeric ? 'y1' : 'x1', pos - boxWidth / 2)
+        .attr(isXNumeric ? 'y2' : 'x2', pos + boxWidth / 2)
+        .attr(isXNumeric ? 'x1' : 'y1', scaleNum(stats.median))
+        .attr(isXNumeric ? 'x2' : 'y2', scaleNum(stats.median))
+        .attr('stroke', '#444')
+        .attr('stroke-width', 2);
+
+      // Extremos
+      svg.append('line')
+        .attr(isXNumeric ? 'y1' : 'x1', pos)
+        .attr(isXNumeric ? 'y2' : 'x2', pos)
+        .attr(isXNumeric ? 'x1' : 'y1', scaleNum(stats.min))
+        .attr(isXNumeric ? 'x2' : 'y2', scaleNum(stats.max))
+        .attr('stroke', '#444')
+        .attr('stroke-width', 1);
+    });
+  }
+
+  // --- PONTOS ---
   svg.selectAll('circle')
     .data(plotData)
     .enter().append('circle')
@@ -546,10 +607,12 @@ function drawScatterplot() {
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       selectedDatum = selectedDatum === d ? null : d;
-      drawParallel(); // destaca no paralelo
-      drawScatterplot(); // destaca aqui também
+      drawParallel();
+      drawScatterplot();
     });
 }
+
+
 
 </script>
 
