@@ -204,7 +204,8 @@ function clearFilters() {
   d3.select(container).selectAll('.line')
     .transition().delay(100).duration(800) // Delay para ver o azul
     .attr('stroke', d => colourScale(d[colourVariable]))
-    .attr('opacity', 0.7);
+    .attr('opacity', 0.7)
+    .attr('stroke-width', 1.5);
 
   // Redesenha brushes vazios
   const svg = d3.select(container).select('svg g');
