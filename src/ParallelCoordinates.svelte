@@ -417,18 +417,19 @@ function updateFilteredData() {
     });
   });
 
-  const lines = d3.select(container).selectAll('.line');
-
-  if (brushMode === 'color') {
-    lines
-      .transition().duration(300)
-      .attr('stroke', d => filteredData.includes(d) ? '#000' : '#4682b4')
-      .attr('opacity', d => filteredData.includes(d) ? 0.9 : 0.05);
-  } else if (brushMode === 'hide') {
-    lines
-      .transition().duration(300)
-      .attr('opacity', d => filteredData.includes(d) ? 0.9 : 0);
-  }
+  d3.select(container).selectAll('.line')
+    .transition().duration(200)
+    .attr('stroke', d => 
+      filteredData.includes(d) 
+        ? colourScale(d[colourVariable]) // Mantém cores originais
+        : '#888' // Cinza médio
+    )
+    .attr('opacity', d => 
+      filteredData.includes(d) ? 0.9 : 0.05 // 15% de opacidade para não selecionados
+    )
+    .attr('stroke-width', d => 
+      filteredData.includes(d) ? 1.5 : 0.8 // Linhas não selecionadas mais finas
+    );
 }
 
 function drawLegend() {
@@ -773,7 +774,12 @@ function drawScatterplot() {
   stroke-linejoin: round;
   stroke-linecap: round;
   shape-rendering: geometricPrecision;
-  transition: stroke 0.4s, opacity 0.4s;
+  transition: opacity 0.2s ease-out;
+}
+
+:global(.line.filtered) {
+  opacity: 0.9;
+  stroke-width: 1.5; /* Destaque sutil para linhas selecionadas */
 }
 
 :global(.axis path),
