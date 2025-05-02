@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
+  let tooltip;
 
   let container;
   let data = [];
@@ -113,6 +114,17 @@ function computeColourScale() {
 
   filteredData = [...data];
   colourVariable = 'college mark';
+  tooltip = d3.select("body").append("div")
+  .attr("class", "tooltip")
+  .style("position", "absolute")
+  .style("background", "#fff")
+  .style("padding", "6px 10px")
+  .style("border", "1px solid #ccc")
+  .style("border-radius", "4px")
+  .style("pointer-events", "none")
+  .style("font-size", "13px")
+  .style("color", "#333")
+  .style("opacity", 0);
 
 });
 
@@ -530,7 +542,6 @@ function drawScatterplot() {
     ? d3.scaleLinear().domain(d3.extent(plotData, d => d[yVar])).nice().range([height, 0])
     : d3.scalePoint().domain([...new Set(plotData.map(d => d[yVar]))]).range([height, 0]).padding(0.5);
 
-  // Eixos
   svg.append('g')
     .attr('transform', `translate(0,${height})`)
     .call(isXNumeric ? d3.axisBottom(x) : d3.axisBottom(x).tickSize(0));
@@ -538,8 +549,8 @@ function drawScatterplot() {
   svg.append('g')
     .call(isYNumeric ? d3.axisLeft(y) : d3.axisLeft(y).tickSize(0));
 
-  // --- BOXPLOTS ---
-  const boxplotMode = (isXNumeric !== isYNumeric); // só ativa se for categórico x numérico
+  // === Categórica × Numérica → Boxplots ===
+  const boxplotMode = isXNumeric !== isYNumeric;
   if (boxplotMode) {
     const catVar = isXNumeric ? yVar : xVar;
     const numVar = isXNumeric ? xVar : yVar;
@@ -566,7 +577,6 @@ function drawScatterplot() {
       const stats = getBoxStats(values);
       const pos = scaleCat(cat);
 
-      // Caixa interquartil
       svg.append('rect')
         .attr(isXNumeric ? 'y' : 'x', pos - boxWidth / 2)
         .attr(isXNumeric ? 'x' : 'y', scaleNum(stats.q1))
@@ -575,7 +585,6 @@ function drawScatterplot() {
         .attr('fill', '#999')
         .attr('opacity', 0.3);
 
-      // Mediana
       svg.append('line')
         .attr(isXNumeric ? 'y1' : 'x1', pos - boxWidth / 2)
         .attr(isXNumeric ? 'y2' : 'x2', pos + boxWidth / 2)
@@ -584,7 +593,6 @@ function drawScatterplot() {
         .attr('stroke', '#444')
         .attr('stroke-width', 2);
 
-      // Extremos
       svg.append('line')
         .attr(isXNumeric ? 'y1' : 'x1', pos)
         .attr(isXNumeric ? 'y2' : 'x2', pos)
@@ -595,7 +603,52 @@ function drawScatterplot() {
     });
   }
 
-  // --- PONTOS ---
+  // === Categórica × Categórica → Dot Plot com Frequência ===
+  else if (!isXNumeric && !isYNumeric) {
+    const groups = d3.rollups(
+      plotData,
+      v => v.length,
+      d => d[xVar],
+      d => d[yVar]
+    );
+
+    const counts = groups.flatMap(([xCat, inner]) =>
+      inner.map(([yCat, count]) => ({ xCat, yCat, count }))
+    );
+
+    const maxCount = d3.max(counts, d => d.count);
+
+    const rScale = d3.scaleSqrt()
+      .domain([0, maxCount])
+      .range([0, 20]);
+
+    svg.selectAll('circle')
+      .data(counts)
+      .enter().append('circle')
+      .attr('cx', d => x(d.xCat))
+      .attr('cy', d => y(d.yCat))
+      .attr('r', d => rScale(d.count))
+      .attr('fill', '#4682b4')
+      .attr('opacity', 0.7)
+      .attr('stroke', '#333')
+      .attr('stroke-width', 1)
+      .on('mouseover', function(event, d) {
+        tooltip.transition().duration(100).style('opacity', 1);
+        tooltip.html(`<strong>${xVar}</strong>: ${d.xCat}<br><strong>${yVar}</strong>: ${d.yCat}<br><strong>Frequência</strong>: ${d.count}`);
+      })
+      .on('mousemove', function(event) {
+        tooltip
+          .style('left', (event.pageX + 10) + 'px')
+          .style('top', (event.pageY - 28) + 'px');
+      })
+      .on('mouseout', function() {
+        tooltip.transition().duration(200).style('opacity', 0);
+      });
+
+    return; // não desenhar pontos normais
+  }
+
+  // === Numérica × Numérica ou Numérica × Categórica → Scatter Plot ===
   svg.selectAll('circle')
     .data(plotData)
     .enter().append('circle')
@@ -611,6 +664,7 @@ function drawScatterplot() {
       drawScatterplot();
     });
 }
+
 
 
 
@@ -695,6 +749,21 @@ function drawScatterplot() {
 .actions button:hover {
   background: #ebebeb;
 }
+
+:global(.tooltip) {
+    position: absolute;
+    background: white;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    pointer-events: none;
+    font-size: 13px;
+    color: #333;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+
 
 :global(svg) {
   font-family: 'Inter', sans-serif;
