@@ -193,18 +193,27 @@ function clearFilters() {
 
   // Redefine as linhas
   d3.select(container).selectAll('.line')
-    .transition().duration(300)
-    .attr('stroke', '#4682b4')
+    .transition().duration(100)
+    .attr('stroke', '#e0e0e0')
     .attr('opacity', 0.7);
 
   // Remove brushes visuais
   d3.select(container).selectAll('.brush').remove();
 
+  // Transição para as cores originais (gradiente)
+  d3.select(container).selectAll('.line')
+    .transition().delay(100).duration(800) // Delay para ver o azul
+    .attr('stroke', d => colourScale(d[colourVariable]))
+    .attr('opacity', 0.7);
+
   // Redesenha brushes vazios
   const svg = d3.select(container).select('svg g');
   selectedDimensions.forEach(dim => {
-    createBrush(svg, dim, 500 - 30 - 10); 
+    createBrush(svg, dim, 500 - 30 - 10);
   });
+
+  // Atualiza a legenda se necessário
+  if (legendContainer) drawLegend();
 }
 
 function createBrush(svg, dim, height) {
@@ -327,25 +336,39 @@ $: if (data.length && selectedDimensions.length) {
       .attr('stroke-width', d => d === selectedDatum ? 3 : 2.5)
       .attr('opacity', d => d === selectedDatum ? 1 : 0.7)
       .on('mouseover', function(event, d) {
-        d3.selectAll('.line')
-          .transition().duration(150)
-          .attr('opacity', l => (l === d ? 1 : 0.05));
-
+        // Apenas escurece outras linhas se NÃO houver brush ativo
+        if (Object.keys(brushes).length === 0) {
+          d3.selectAll('.line')
+            .transition().duration(150)
+            .attr('opacity', l => (l === d ? 1 : 0.05));
+        }
+        
         d3.select(this)
+          .raise()
           .transition().duration(150)
           .attr('stroke-width', 3);
+
+        // Atualiza tooltip (se aplicável)
+        tooltip.html(`ID: ${d.id}`) // Personalize com seus dados
+          .style('left', `${event.pageX + 10}px`)
+          .style('top', `${event.pageY - 28}px`)
+          .style('opacity', 1);
       })
-      .on('mouseout', function(event, d) {
-        d3.selectAll('.line')
-          .transition().duration(150)
-          .attr('opacity', l => (l === selectedDatum ? 1 : 0.7));
+        .on('mouseout', function(event, d) {
+          // Só restaura se NÃO houver brush ativo
+          if (Object.keys(brushes).length === 0) {
+            d3.selectAll('.line')
+              .transition().duration(300)
+              .attr('opacity', 0.7)
+              .attr('stroke', l => colourScale(l[colourVariable]));
+          }
+          
+          d3.select(this)
+            .transition().duration(150)
+            .attr('stroke-width', 2.5);
 
-        d3.select(this)
-          .transition().duration(150)
-          .attr('stroke-width', d => d === selectedDatum ? 3 : 2.5);
-      })
-
-
+          tooltip.style('opacity', 0);
+        })
 
       .on('click', function(event, d) {
         if (selectedDatum === d) {
@@ -425,7 +448,7 @@ function updateFilteredData() {
         : '#888' // Cinza médio
     )
     .attr('opacity', d => 
-      filteredData.includes(d) ? 0.9 : 0.05 // 15% de opacidade para não selecionados
+      filteredData.includes(d) ? 0.9 : 0.05 // 5% de opacidade para não selecionados
     )
     .attr('stroke-width', d => 
       filteredData.includes(d) ? 1.5 : 0.8 // Linhas não selecionadas mais finas
