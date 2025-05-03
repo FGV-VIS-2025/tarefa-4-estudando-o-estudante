@@ -397,26 +397,29 @@ $: if (data.length && selectedDimensions.length) {
   }
 
   // Eixos
-  svg.selectAll('.axis')
-    .data(selectedDimensions, d => d)
-    .enter()
-    .append('g')
-      .attr('class', 'axis')
-      .attr('transform', d => `translate(${x(d)},0)`)
-      .each(function(d) {
-        d3.select(this).call(d3.axisLeft(yScales[d]));
-      })
-      .call(
-        d3.drag()
-          .on('start', dragstarted)
-          .on('drag', dragged)
-          .on('end', dragended)
-      )
-      .append('text')
-        .attr('class', 'axis-label')
-        .style('text-anchor', 'middle')
-        .attr('y', -9)
-        .text(d => d);
+// dentro de drawParallel(), logo depois de criar cada eixo
+svg.selectAll('.axis')
+  .data(selectedDimensions, d => d)
+  .enter()
+  .append('g')
+    .attr('class', 'axis')
+    .attr('transform', d => `translate(${x(d)},0)`)
+    .each(function (d) {
+      d3.select(this).call(d3.axisLeft(yScales[d]));
+    })
+    .call(                              // continua permitindo drag nos eixos
+      d3.drag()
+        .on('start', dragstarted)
+        .on('drag',  dragged)
+        .on('end',   dragended)
+    )
+  .append('text')
+    .attr('class', 'axis-label')
+    .attr('y', -9)
+    .attr('x', 0)
+    .attr('text-anchor', 'start')   
+    .attr('transform', 'rotate(-35)')  
+    .text(d => d);
 
   // Brushing
   selectedDimensions.forEach(dim => {
