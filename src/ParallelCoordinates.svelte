@@ -275,8 +275,8 @@ function createBrush(svg, dim, height) {
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
   drawParallel();
-  drawScatterplot();
   drawRadarChart();
+  drawScatterplot();
   drawLegend();
 }
 
@@ -804,8 +804,8 @@ function drawScatterplot() {
 }
 
 $: if (data.length && xVar && yVar) {
-  drawScatterplot();
   drawRadarChart();
+  drawScatterplot();
 }
 
 
@@ -1027,17 +1027,22 @@ $: if (data.length && xVar && yVar) {
 
 
   <!-- 📈 Gráfico com botão flutuante -->
-  <div style="position: relative;">
-    <div bind:this={container} style="height: 600px;"></div>
+<!-- 📈 Gráfico + radar empilhados -->
+<div style="display:flex; flex-direction:column; align-items:center; position:relative;">
+  <!-- Parallel Coordinates -->
+  <div bind:this={container} style="height: 600px;"></div>
 
-    <button 
-      type="button" 
-      on:click={clearFilters}
-      style="position: absolute; bottom: 10px; right: 10px; background-color: #ff9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;"
-    >
-      Remover Filtros
-    </button>
-  </div>
+  <!-- Radar Chart — fica logo abaixo -->
+  <div bind:this={radarContainer} style="height: 420px; width: 100%; margin-top: 1rem;"></div>
+
+  <!-- Botão flutuante continua funcionando -->
+  <button
+    type="button"
+    on:click={clearFilters}
+    style="position: absolute; bottom: 10px; right: 10px; background:#ff9800; color:#fff; padding:0.5rem 1rem; border:none; border-radius:6px; cursor:pointer;">
+    Remover Filtros
+  </button>
+</div>
 
   <!-- 🎛️ Painel de controles à direita -->
   <div style="min-width: 200px; font-size: 14px;">
@@ -1162,7 +1167,6 @@ $: if (data.length && xVar && yVar) {
     </label>
   </div>
   <div bind:this={scatterContainer}></div>
-  <div style="margin-top:1rem;" bind:this={radarContainer}></div>
 
 </div>
 
