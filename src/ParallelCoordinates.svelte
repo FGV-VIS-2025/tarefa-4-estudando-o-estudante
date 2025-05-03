@@ -291,9 +291,11 @@ $: if (data.length && selectedDimensions.length) {
   function drawParallel() {
   d3.select(container).selectAll('*').remove();
 
-  const margin = { top: 30, right: 10, bottom: 10, left: 10 };
-  const width = 700 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
+  const margin = { top: 50, right: 40, bottom: 20, left: 40 };
+
+  const width  = 900 - margin.left - margin.right;   // antes 700
+  const height = 550 - margin.top  - margin.bottom;  // antes 500
+
 
   const svg = d3.select(container)
     .append('svg')
