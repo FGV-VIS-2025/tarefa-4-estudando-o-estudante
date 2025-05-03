@@ -24,6 +24,8 @@ let legendContainer;
 let brushMode = 'color'; // 'color' ou 'hide'
 let xVar = 'college mark';
 let yVar = 'Stress Level';
+let radarNumericDims = [];  
+let radarContainer;     
 
 function updateAxisLabels() {
   d3.select(container).selectAll('.axis').each(function(d) {
@@ -537,6 +539,75 @@ function drawLegend() {
 $: if (data.length && xVar && yVar) {
   drawScatterplot();
 }
+function drawRadarChart() {
+  if (!radarContainer) return;
+  d3.select(radarContainer).selectAll('*').remove();
+
+  const numericDims = selectedDimensions.filter(dim =>
+    data.every(d => typeof d[dim] === 'number')
+  );
+  if (numericDims.length < 3) return;          // precisa de ≥3 eixos
+
+  const W = 400, H = 400, R = Math.min(W, H) / 2 - 40;
+  const svg = d3.select(radarContainer)
+    .append('svg').attr('width', W).attr('height', H)
+    .append('g').attr('transform', `translate(${W/2},${H/2})`);
+
+  const angle = (2 * Math.PI) / numericDims.length;
+
+  // escalas individuais
+  const scales = Object.fromEntries(
+    numericDims.map(dim => [dim, d3.scaleLinear(d3.extent(data, d => d[dim]), [0, R])])
+  );
+
+  // linhas radiais + rótulos
+  numericDims.forEach((dim, i) => {
+    const a = -Math.PI/2 + i * angle;
+    svg.append('line')
+       .attr('x1',0).attr('y1',0)
+       .attr('x2', Math.cos(a)*R).attr('y2', Math.sin(a)*R)
+       .attr('stroke','#ccc');
+    svg.append('text')
+       .attr('x', Math.cos(a)*R*1.1)
+       .attr('y', Math.sin(a)*R*1.1)
+       .attr('text-anchor','middle')
+       .attr('font-size',12)
+       .text(dim);
+  });
+
+  // anéis concêntricos
+  const rings = 5;
+  for (let k=1;k<=rings;k++){
+    const r = (R/rings)*k;
+    const pts = numericDims.map((_,i)=>[
+      Math.cos(-Math.PI/2 + i*angle)*r,
+      Math.sin(-Math.PI/2 + i*angle)*r
+    ]);
+    svg.append('polygon')
+       .attr('points', pts.map(p=>p.join(',')).join(' '))
+       .attr('fill','none').attr('stroke','#ddd');
+  }
+
+  // dados: média dos pontos filtrados (ou o ponto clicado)
+  const base = selectedDatum
+      ? selectedDatum
+      : Object.fromEntries(
+          numericDims.map(dim => [dim, d3.mean(filteredData, d => d[dim])])
+        );
+
+  const poly = numericDims.map((dim,i)=>{
+    const r = scales[dim](base[dim]);
+    const a = -Math.PI/2 + i*angle;
+    return [Math.cos(a)*r, Math.sin(a)*r];
+  });
+
+  svg.append('polygon')
+     .attr('points', poly.map(p=>p.join(',')).join(' '))
+     .attr('fill','rgba(70,130,180,.4)')
+     .attr('stroke','#4682b4')
+     .attr('stroke-width',2);
+}
+
 
 function drawScatterplot() {
   d3.select(scatterContainer).selectAll('*').remove();
@@ -903,6 +974,9 @@ function drawScatterplot() {
     Legenda de Cores
   </div>
   <div bind:this={legendContainer} style="width: 60px; height: 500px;"></div>
+  <div bind:this={scatterContainer}></div>
+  <div style="margin-top:1rem;" bind:this={radarContainer}></div>  <!-- ②  -->
+
 </div>
 
 
@@ -1042,6 +1116,8 @@ function drawScatterplot() {
     </label>
   </div>
   <div bind:this={scatterContainer}></div>
+  <div style="margin-top:1rem;" bind:this={radarContainer}></div>
+
 </div>
 
 <!-- ♻️ Botão de restaurar -->
