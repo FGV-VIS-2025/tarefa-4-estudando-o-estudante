@@ -563,7 +563,7 @@ function drawRadarChart() {
   if (numericDims.length < 3) {
     d3.select(radarContainer).append('div')
       .style('padding','12px')
-      .text('Selecione pelo menos 3 variáveis numéricas …');
+      .text('Selecione pelo menos 3 variáveis numéricas para visualizar o Radar Plot…');
     return;
   }
 
