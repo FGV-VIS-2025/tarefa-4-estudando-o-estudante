@@ -110,6 +110,7 @@ function computeColourScale() {
     "college mark",
     "Stress Level"
   ];
+  selectedDimensions = ['college mark', 'Stress Level', 'Salary Expectation'];
 
   // Só adiciona no início os que existem no data
   selectedDimensions = initialSet.filter(dim => allDimensions.includes(dim));
@@ -274,11 +275,17 @@ function createBrush(svg, dim, height) {
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
   drawParallel();
+  drawScatterplot();
+  drawRadarChart();
   drawLegend();
 }
 
+
   $: if (data.length && selectedDimensions) {
     drawParallel();
+  }
+  $: if (data.length) {
+    drawRadarChart();
   }
 
   function drawParallel() {
@@ -537,19 +544,23 @@ function drawLegend() {
   }
 }
 
-$: if (data.length && xVar && yVar) {
-  drawScatterplot();
-  drawRadarChart();
-}
 function drawRadarChart() {
     if (!radarContainer) return;
     d3.select(radarContainer).selectAll('*').remove();
 
-    // filtre apenas variáveis numéricas **válidas** no subconjunto actualmente filtrado
     const numericDims = selectedDimensions.filter(dim =>
       filteredData.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
     );
-    if (numericDims.length < 3) return; // need triangle or more
+
+    if (numericDims.length < 3) {
+      d3.select(radarContainer)
+        .append('div')
+        .style('padding', '12px')
+        .style('font-size', '14px')
+        .style('color', '#666')
+        .text('Selecione pelo menos 3 variáveis numéricas para exibir o radar.');
+      return;
+    }
 
     const width = 400, height = 400, radius = Math.min(width, height) / 2 - 40, levels = 5;
 
@@ -561,12 +572,12 @@ function drawRadarChart() {
 
     const angleSlice = (Math.PI * 2) / numericDims.length;
 
-    // scales per axis (use *filtered* data so removed points não contam)
     const axisScales = Object.fromEntries(
       numericDims.map(dim => [dim, d3.scaleLinear(d3.extent(filteredData, d => d[dim]), [0, radius])])
     );
+    console.log('[radar] selected →', selectedDimensions);
+    console.log('[radar] numeric  →', numericDims);
 
-    // radial lines & labels
     numericDims.forEach((dim, i) => {
       const a = -Math.PI / 2 + i * angleSlice;
       svg.append('line')
@@ -581,7 +592,6 @@ function drawRadarChart() {
         .text(dim);
     });
 
-    // concentric polygons
     for (let lvl = 1; lvl <= levels; lvl++) {
       const r = (radius / levels) * lvl;
       const pts = numericDims.map((_, i) => {
@@ -594,19 +604,18 @@ function drawRadarChart() {
         .attr('stroke', '#ddd');
     }
 
-    // data polygon – average of filteredData or selectedDatum
     const base = selectedDatum || Object.fromEntries(
       numericDims.map(dim => [dim, d3.mean(filteredData, d => d[dim])])
     );
 
-    const radarPoints = numericDims.map((dim, i) => {
+    const points = numericDims.map((dim, i) => {
       const a = -Math.PI / 2 + i * angleSlice;
       const r = axisScales[dim](base[dim]);
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
 
     svg.append('polygon')
-      .attr('points', radarPoints.map(p => p.join(',')).join(' '))
+      .attr('points', points.map(p => p.join(',')).join(' '))
       .attr('fill', 'rgba(70,130,180,0.4)')
       .attr('stroke', '#4682b4')
       .attr('stroke-width', 2);
@@ -760,10 +769,15 @@ function drawScatterplot() {
     .on('click', (event, d) => {
       selectedDatum = selectedDatum === d ? null : d;
       drawParallel();
+      drawRadarChart();
       drawScatterplot();
     });
 }
 
+$: if (data.length && xVar && yVar) {
+  drawScatterplot();
+  drawRadarChart();
+}
 
 
 
