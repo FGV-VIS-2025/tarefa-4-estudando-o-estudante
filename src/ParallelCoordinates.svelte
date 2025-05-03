@@ -536,78 +536,81 @@ function drawLegend() {
     });
   }
 }
+
 $: if (data.length && xVar && yVar) {
   drawScatterplot();
+  drawRadarChart();
 }
 function drawRadarChart() {
-  if (!radarContainer) return;
-  d3.select(radarContainer).selectAll('*').remove();
+    if (!radarContainer) return;
+    d3.select(radarContainer).selectAll('*').remove();
 
-  const numericDims = selectedDimensions.filter(dim =>
-    data.every(d => typeof d[dim] === 'number')
-  );
-  if (numericDims.length < 3) return;          // precisa de ≥3 eixos
+    // filtre apenas variáveis numéricas **válidas** no subconjunto actualmente filtrado
+    const numericDims = selectedDimensions.filter(dim =>
+      filteredData.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
+    );
+    if (numericDims.length < 3) return; // need triangle or more
 
-  const W = 400, H = 400, R = Math.min(W, H) / 2 - 40;
-  const svg = d3.select(radarContainer)
-    .append('svg').attr('width', W).attr('height', H)
-    .append('g').attr('transform', `translate(${W/2},${H/2})`);
+    const width = 400, height = 400, radius = Math.min(width, height) / 2 - 40, levels = 5;
 
-  const angle = (2 * Math.PI) / numericDims.length;
+    const svg = d3.select(radarContainer).append('svg')
+      .attr('width', width)
+      .attr('height', height)
+      .append('g')
+      .attr('transform', `translate(${width / 2},${height / 2})`);
 
-  // escalas individuais
-  const scales = Object.fromEntries(
-    numericDims.map(dim => [dim, d3.scaleLinear(d3.extent(data, d => d[dim]), [0, R])])
-  );
+    const angleSlice = (Math.PI * 2) / numericDims.length;
 
-  // linhas radiais + rótulos
-  numericDims.forEach((dim, i) => {
-    const a = -Math.PI/2 + i * angle;
-    svg.append('line')
-       .attr('x1',0).attr('y1',0)
-       .attr('x2', Math.cos(a)*R).attr('y2', Math.sin(a)*R)
-       .attr('stroke','#ccc');
-    svg.append('text')
-       .attr('x', Math.cos(a)*R*1.1)
-       .attr('y', Math.sin(a)*R*1.1)
-       .attr('text-anchor','middle')
-       .attr('font-size',12)
-       .text(dim);
-  });
+    // scales per axis (use *filtered* data so removed points não contam)
+    const axisScales = Object.fromEntries(
+      numericDims.map(dim => [dim, d3.scaleLinear(d3.extent(filteredData, d => d[dim]), [0, radius])])
+    );
 
-  // anéis concêntricos
-  const rings = 5;
-  for (let k=1;k<=rings;k++){
-    const r = (R/rings)*k;
-    const pts = numericDims.map((_,i)=>[
-      Math.cos(-Math.PI/2 + i*angle)*r,
-      Math.sin(-Math.PI/2 + i*angle)*r
-    ]);
+    // radial lines & labels
+    numericDims.forEach((dim, i) => {
+      const a = -Math.PI / 2 + i * angleSlice;
+      svg.append('line')
+        .attr('x1', 0).attr('y1', 0)
+        .attr('x2', Math.cos(a) * radius).attr('y2', Math.sin(a) * radius)
+        .attr('stroke', '#ccc');
+      svg.append('text')
+        .attr('x', Math.cos(a) * (radius + 12))
+        .attr('y', Math.sin(a) * (radius + 12))
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 12)
+        .text(dim);
+    });
+
+    // concentric polygons
+    for (let lvl = 1; lvl <= levels; lvl++) {
+      const r = (radius / levels) * lvl;
+      const pts = numericDims.map((_, i) => {
+        const a = -Math.PI / 2 + i * angleSlice;
+        return [Math.cos(a) * r, Math.sin(a) * r];
+      });
+      svg.append('polygon')
+        .attr('points', pts.map(p => p.join(',')).join(' '))
+        .attr('fill', 'none')
+        .attr('stroke', '#ddd');
+    }
+
+    // data polygon – average of filteredData or selectedDatum
+    const base = selectedDatum || Object.fromEntries(
+      numericDims.map(dim => [dim, d3.mean(filteredData, d => d[dim])])
+    );
+
+    const radarPoints = numericDims.map((dim, i) => {
+      const a = -Math.PI / 2 + i * angleSlice;
+      const r = axisScales[dim](base[dim]);
+      return [Math.cos(a) * r, Math.sin(a) * r];
+    });
+
     svg.append('polygon')
-       .attr('points', pts.map(p=>p.join(',')).join(' '))
-       .attr('fill','none').attr('stroke','#ddd');
+      .attr('points', radarPoints.map(p => p.join(',')).join(' '))
+      .attr('fill', 'rgba(70,130,180,0.4)')
+      .attr('stroke', '#4682b4')
+      .attr('stroke-width', 2);
   }
-
-  // dados: média dos pontos filtrados (ou o ponto clicado)
-  const base = selectedDatum
-      ? selectedDatum
-      : Object.fromEntries(
-          numericDims.map(dim => [dim, d3.mean(filteredData, d => d[dim])])
-        );
-
-  const poly = numericDims.map((dim,i)=>{
-    const r = scales[dim](base[dim]);
-    const a = -Math.PI/2 + i*angle;
-    return [Math.cos(a)*r, Math.sin(a)*r];
-  });
-
-  svg.append('polygon')
-     .attr('points', poly.map(p=>p.join(',')).join(' '))
-     .attr('fill','rgba(70,130,180,.4)')
-     .attr('stroke','#4682b4')
-     .attr('stroke-width',2);
-}
-
 
 function drawScatterplot() {
   d3.select(scatterContainer).selectAll('*').remove();
