@@ -24,6 +24,8 @@ let legendContainer;
 let brushMode = 'color'; // 'color' ou 'hide'
 let xVar = 'college mark';
 let yVar = 'Stress Level';
+let radarNumericDims = [];  
+let radarContainer;     
 
 function updateAxisLabels() {
   d3.select(container).selectAll('.axis').each(function(d) {
@@ -108,6 +110,7 @@ function computeColourScale() {
     "college mark",
     "Stress Level"
   ];
+  selectedDimensions = ['college mark', 'Stress Level', 'Salary Expectation'];
 
   // Só adiciona no início os que existem no data
   selectedDimensions = initialSet.filter(dim => allDimensions.includes(dim));
@@ -272,19 +275,27 @@ function createBrush(svg, dim, height) {
 $: if (data.length && selectedDimensions.length) {
   computeColourScale();
   drawParallel();
+  drawRadarChart();
+  drawScatterplot();
   drawLegend();
 }
 
+
   $: if (data.length && selectedDimensions) {
     drawParallel();
+  }
+  $: if (data.length) {
+    drawRadarChart();
   }
 
   function drawParallel() {
   d3.select(container).selectAll('*').remove();
 
-  const margin = { top: 30, right: 10, bottom: 10, left: 10 };
-  const width = 700 - margin.left - margin.right;
-  const height = 500 - margin.top - margin.bottom;
+  const margin = { top: 80, right: 40, bottom: 20, left: 40 };
+
+  const width  = 900 - margin.left - margin.right;   // antes 700
+  const height = 550 - margin.top  - margin.bottom;  // antes 500
+
 
   const svg = d3.select(container)
     .append('svg')
@@ -388,26 +399,29 @@ $: if (data.length && selectedDimensions.length) {
   }
 
   // Eixos
-  svg.selectAll('.axis')
-    .data(selectedDimensions, d => d)
-    .enter()
-    .append('g')
-      .attr('class', 'axis')
-      .attr('transform', d => `translate(${x(d)},0)`)
-      .each(function(d) {
-        d3.select(this).call(d3.axisLeft(yScales[d]));
-      })
-      .call(
-        d3.drag()
-          .on('start', dragstarted)
-          .on('drag', dragged)
-          .on('end', dragended)
-      )
-      .append('text')
-        .attr('class', 'axis-label')
-        .style('text-anchor', 'middle')
-        .attr('y', -9)
-        .text(d => d);
+// dentro de drawParallel(), logo depois de criar cada eixo
+svg.selectAll('.axis')
+  .data(selectedDimensions, d => d)
+  .enter()
+  .append('g')
+    .attr('class', 'axis')
+    .attr('transform', d => `translate(${x(d)},0)`)
+    .each(function (d) {
+      d3.select(this).call(d3.axisLeft(yScales[d]));
+    })
+    .call(                              // continua permitindo drag nos eixos
+      d3.drag()
+        .on('start', dragstarted)
+        .on('drag',  dragged)
+        .on('end',   dragended)
+    )
+  .append('text')
+    .attr('class', 'axis-label')
+    .attr('y', -9)
+    .attr('x', 0)
+    .attr('text-anchor', 'start')   
+    .attr('transform', 'rotate(-35)')  
+    .text(d => d);
 
   // Brushing
   selectedDimensions.forEach(dim => {
@@ -534,8 +548,111 @@ function drawLegend() {
     });
   }
 }
-$: if (data.length && xVar && yVar) {
-  drawScatterplot();
+
+function drawRadarChart() {
+  if (!radarContainer) return;
+  d3.select(radarContainer).selectAll('*').remove();
+
+  // >>> 0) escolha explícita de variáveis numéricas <<<
+  const ignore = new Set(['id']);
+  const numericDims = selectedDimensions.filter(dim =>
+    !ignore.has(dim) &&
+    filteredData.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
+  );
+
+  if (numericDims.length < 3) {
+    d3.select(radarContainer).append('div')
+      .style('padding','12px')
+      .text('Selecione pelo menos 3 variáveis numéricas para visualizar o Radar Plot…');
+    return;
+  }
+
+  const W = 400, H = 400, R = Math.min(W,H)/2 - 40, levels = 5;
+  const svg = d3.select(radarContainer).append('svg')
+    .attr('width', W).attr('height', H)
+    .append('g').attr('transform',`translate(${W/2},${H/2})`);
+
+  const angleStep = 2 * Math.PI / numericDims.length;
+
+  // >>> 1) NORMALIZAÇÃO 0‑1 por eixo <<<
+  const scales = Object.fromEntries(
+    numericDims.map(dim => [
+      dim,
+      d3.scaleLinear(d3.extent(filteredData,d=>d[dim]), [0,1])   // 0‑1
+    ])
+  );
+
+  // >>> 2) fundo em anéis concêntricos <<<
+  for (let k = 1; k <= levels; k++) {
+    const r = R * k / levels;
+    const pts = numericDims.map((_, i) => {
+      const a = -Math.PI/2 + i * angleStep;
+      return [Math.cos(a)*r, Math.sin(a)*r];
+    });
+    svg.append('polygon')
+      .attr('points', pts.map(p=>p.join(',')).join(' '))
+      .attr('fill','none').attr('stroke','#ddd');
+  }
+
+  // >>> 3) eixos + rótulos (com ancoragem inteligente) <<<
+  numericDims.forEach((dim,i) => {
+    const a = -Math.PI/2 + i * angleStep;
+    svg.append('line')
+      .attr('x1',0).attr('y1',0)
+      .attr('x2',Math.cos(a)*R).attr('y2',Math.sin(a)*R)
+      .attr('stroke','#ccc');
+
+    const x = Math.cos(a)*(R+12),
+          y = Math.sin(a)*(R+12);
+    svg.append('text')
+      .attr('x', x).attr('y', y)
+      .attr('dy', '0.35em')
+      .attr('text-anchor', Math.abs(a) < Math.PI/2 ? 'start'
+                       : Math.abs(a) > (Math.PI*3/2) ? 'end'
+                       : 'middle')
+      .style('font-size', 11)
+      .call(wrap, 60)          // função wrap abaixo
+      .text(dim);
+  });
+
+  // >>> 4) polígono para o ponto selecionado (ou média) <<<
+  const datum = selectedDatum ||
+    Object.fromEntries(numericDims.map(dim=>[dim,d3.mean(filteredData,d=>d[dim])]));
+
+  const poly = numericDims.map((dim,i) => {
+    const a = -Math.PI/2 + i * angleStep;
+    const r = scales[dim](datum[dim]) * R;
+    return [Math.cos(a)*r, Math.sin(a)*r];
+  });
+
+  svg.append('polygon')
+    .attr('points', poly.map(p=>p.join(',')).join(' '))
+    .attr('fill','rgba(70,130,180,0.4)')
+    .attr('stroke','#4682b4').attr('stroke-width',2);
+
+  // --- função auxiliar para quebrar linhas ---
+  function wrap(text, width) {
+    text.each(function() {
+      const words = d3.select(this).text().split(/\s+/).reverse();
+      let line = [], lineNumber = 0, tspan;
+      const y = this.getAttribute('y'), x = this.getAttribute('x');
+      d3.select(this).text(null);
+      tspan = d3.select(this).append('tspan').attr('x',x).attr('y',y);
+      while (words.length) {
+        line.push(words.pop());
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > width) {
+          line.pop();
+          tspan.text(line.join(' '));
+          line = [words.pop()];
+          tspan = d3.select(this).append('tspan')
+            .attr('x',x).attr('y',y)
+            .attr('dy', ++lineNumber * 12 + 'px')
+            .text(line.join(' '));
+        }
+      }
+    });
+  }
 }
 
 function drawScatterplot() {
@@ -686,10 +803,15 @@ function drawScatterplot() {
     .on('click', (event, d) => {
       selectedDatum = selectedDatum === d ? null : d;
       drawParallel();
+      drawRadarChart();
       drawScatterplot();
     });
 }
 
+$: if (data.length && xVar && yVar) {
+  drawRadarChart();
+  drawScatterplot();
+}
 
 
 
@@ -903,21 +1025,29 @@ function drawScatterplot() {
     Legenda de Cores
   </div>
   <div bind:this={legendContainer} style="width: 60px; height: 500px;"></div>
+  <div bind:this={scatterContainer}></div>
+  <div style="margin-top:1rem;" bind:this={radarContainer}></div>  <!-- ②  -->
+
 </div>
 
 
   <!-- 📈 Gráfico com botão flutuante -->
-  <div style="position: relative;">
-    <div bind:this={container} style="height: 600px;"></div>
+<!-- 📈 Gráfico + radar empilhados -->
+<div style="display:flex; flex-direction:column; align-items:center; position:relative;">
+  <!-- Parallel Coordinates -->
+  <div bind:this={container} style="height: 600px;"></div>
 
-    <button 
-      type="button" 
-      on:click={clearFilters}
-      style="position: absolute; bottom: 10px; right: 10px; background-color: #ff9800; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer;"
-    >
-      Remover Filtros
-    </button>
-  </div>
+  <!-- Radar Chart — fica logo abaixo -->
+  <div bind:this={radarContainer} style="height: 420px; width: 100%; margin-top: 1rem;"></div>
+
+  <!-- Botão flutuante continua funcionando -->
+  <button
+    type="button"
+    on:click={clearFilters}
+    style="position: absolute; bottom: 10px; right: 10px; background:#ff9800; color:#fff; padding:0.5rem 1rem; border:none; border-radius:6px; cursor:pointer;">
+    Remover Filtros
+  </button>
+</div>
 
   <!-- 🎛️ Painel de controles à direita -->
   <div style="min-width: 200px; font-size: 14px;">
@@ -1042,6 +1172,7 @@ function drawScatterplot() {
     </label>
   </div>
   <div bind:this={scatterContainer}></div>
+
 </div>
 
 <!-- ♻️ Botão de restaurar -->
