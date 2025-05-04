@@ -287,6 +287,12 @@ $: if (data.length && selectedDimensions.length) {
   $: if (data.length) {
     drawRadarChart();
   }
+  $: if (selectedPalette) {
+  computeColourScale();
+  drawParallel();
+  drawScatterplot();
+  drawLegend();
+  }
 
   function drawParallel() {
   d3.select(container).selectAll('*').remove();
