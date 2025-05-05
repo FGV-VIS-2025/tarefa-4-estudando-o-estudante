@@ -50,41 +50,22 @@
   .faixa-content img:first-child {
     cursor: pointer;
   }
-  .big-btn {
-    font-size: 1.1rem;
-    padding: 0.9rem 2.2rem;
-    border-radius: 10px;
-    background: #66a1ee;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    transition: transform .15s ease;
-  }
-  .big-btn:hover {
-    transform: scale(1.04);
-  }
+  /* estilo */
+.big-btn {
+  font-size: 1.1rem;          /* texto maior */
+  padding: 0.9rem 2.2rem;     /* mais altura e largura */
+  border-radius: 10px;        /* cantos suaves */
+  background: #66a1ee;        /* cor de fundo */
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform .15s ease;
+}
 
-  /* Estilo para a descrição do dataset */
-  .dataset-description {
-    max-width: 800px;
-    margin: 2rem auto;
-    padding: 1.5rem;
-    background: #f7f7f7;
-    border-radius: 0.5rem;
-    color: #333;
-  }
-  .dataset-description h2 {
-    font-size: 1.75rem;
-    margin-bottom: 1rem;
-  }
-  .dataset-description ul {
-    list-style: none;
-    padding: 0;
-  }
-  .dataset-description li {
-    margin-bottom: 0.75rem;
-    line-height: 1.4;
-  }
+.big-btn:hover {
+  transform: scale(1.04);     /* leve zoom no hover */
+}
+
 </style>
 
 <div class="hero">
@@ -107,30 +88,3 @@
     </button>
   </div>
 </div>
-
-<!-- Descrição do Dataset -->
-<section class="dataset-description">
-  <h2>Descrição do Nosso Dataset</h2>
-  <p>Conseguimos uma fonte de dados com as seguintes features:</p>
-  <ul>
-    <li>✅ <strong>Certification Course:</strong> Indica se o estudante concluiu algum curso de certificação.</li>
-    <li>🚻 <strong>Gender:</strong> Gênero do estudante.</li>
-    <li>📚 <strong>Department:</strong> Departamento ou área de estudo do estudante.</li>
-    <li>📏 <strong>Height (CM):</strong> Altura do estudante em centímetros.</li>
-    <li>⚖️ <strong>Weight (KG):</strong> Peso do estudante em quilogramas.</li>
-    <li>📝 <strong>10th Mark:</strong> Nota obtida pelo estudante na 10ª série.</li>
-    <li>🎓 <strong>12th Mark:</strong> Nota obtida pelo estudante na 12ª série.</li>
-    <li>🏫 <strong>College Mark:</strong> Nota obtida pelo estudante na universidade.</li>
-    <li>🎨 <strong>Hobbies:</strong> Hobbies ou interesses do estudante.</li>
-    <li>⏰ <strong>Daily Studying Time:</strong> Tempo diário de estudo do estudante.</li>
-    <li>📚🌳 <strong>Prefer to Study in:</strong> Ambiente ou local preferido para estudo pelo estudante.</li>
-    <li>💰 <strong>Salary Expectation:</strong> Expectativa salarial futura do estudante.</li>
-    <li>👍👎 <strong>Do you like your degree?:</strong> Opinião do estudante sobre gostar ou não do curso.</li>
-    <li>🏢 <strong>Willingness to pursue a career based on their degree:</strong> Disposição do estudante em seguir carreira relacionada ao curso.</li>
-    <li>📱📺 <strong>Social Media & Video:</strong> Engajamento do estudante com mídias sociais e plataformas de vídeo.</li>
-    <li>🚗 <strong>Traveling Time:</strong> Tempo de deslocamento até a instituição de ensino.</li>
-    <li>😓 <strong>Stress Level:</strong> Nível de estresse percebido pelo estudante.</li>
-    <li>💵 <strong>Financial Status:</strong> Status financeiro ou background econômico do estudante.</li>
-    <li>💼 <strong>Part-time Job:</strong> Indica se o estudante possui um emprego de meio período.</li>
-  </ul>
-</section>
