@@ -55,7 +55,7 @@
   font-size: 1.1rem;          /* texto maior */
   padding: 0.9rem 2.2rem;     /* mais altura e largura */
   border-radius: 10px;        /* cantos suaves */
-  background: #1a73e8;        /* cor de fundo */
+  background: #66a1ee;        /* cor de fundo */
   color: #fff;
   border: none;
   cursor: pointer;
