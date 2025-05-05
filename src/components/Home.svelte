@@ -66,6 +66,6 @@
 
 <div class="faixa">
   <div class="faixa-content">
-    <img src="/assets/parallel_coords.png" alt="Clique aqui para explorar!" on:click={onStart} />
+    <button on:click={onStart}> Prosseguir para visualização </button>
   </div>
 </div>
