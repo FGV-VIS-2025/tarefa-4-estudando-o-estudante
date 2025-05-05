@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   let tooltip;
+  let genderFilter = 'All';        // ⬅️ novo
 
   let container;
   let data = [];
@@ -431,6 +432,19 @@ svg.selectAll('.axis')
   updateAxisLabels();
 }
 
+function applyFilters() {
+  filteredData = (genderFilter === 'All')
+      ? data
+      : data.filter(d => d.Gender === genderFilter);
+
+  computeColourScale();   // mantém coerente a escala
+  drawParallel();         // redesenha gráficos
+  drawRadarChart();
+  drawScatterplot();
+  drawLegend();
+}
+
+$: if (genderFilter) applyFilters();   // reativo
 
 
 function updateFilteredData() {
@@ -553,106 +567,109 @@ function drawRadarChart() {
   if (!radarContainer) return;
   d3.select(radarContainer).selectAll('*').remove();
 
-  // >>> 0) escolha explícita de variáveis numéricas <<<
+  // 1) ­­­­­Dimensões numéricas válidas
   const ignore = new Set(['id']);
   const numericDims = selectedDimensions.filter(dim =>
     !ignore.has(dim) &&
-    filteredData.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
+    data.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
   );
 
   if (numericDims.length < 3) {
     d3.select(radarContainer).append('div')
-      .style('padding','12px')
+      .style('padding', '12px')
       .text('Selecione pelo menos 3 variáveis numéricas para visualizar o Radar Plot…');
     return;
   }
 
-  const W = 400, H = 400, R = Math.min(W,H)/2 - 40, levels = 5;
-  const svg = d3.select(radarContainer).append('svg')
-    .attr('width', W).attr('height', H)
-    .append('g').attr('transform',`translate(${W/2},${H/2})`);
-
+  // 2)  Dimensões e escalas 0‑1
+  const W = 400, H = 400, R = Math.min(W, H) / 2 - 40, levels = 5;
   const angleStep = 2 * Math.PI / numericDims.length;
 
-  // >>> 1) NORMALIZAÇÃO 0‑1 por eixo <<<
   const scales = Object.fromEntries(
     numericDims.map(dim => [
       dim,
-      d3.scaleLinear(d3.extent(filteredData,d=>d[dim]), [0,1])   // 0‑1
+      d3.scaleLinear(d3.extent(data, d => d[dim]), [0, 1])
     ])
   );
 
-  // >>> 2) fundo em anéis concêntricos <<<
+  // 3)  SVG base + anéis
+  const svg = d3.select(radarContainer).append('svg')
+    .attr('width', W).attr('height', H)
+    .append('g')
+      .attr('transform', `translate(${W / 2},${H / 2})`);
+
   for (let k = 1; k <= levels; k++) {
     const r = R * k / levels;
     const pts = numericDims.map((_, i) => {
-      const a = -Math.PI/2 + i * angleStep;
-      return [Math.cos(a)*r, Math.sin(a)*r];
+      const a = -Math.PI / 2 + i * angleStep;
+      return [Math.cos(a) * r, Math.sin(a) * r];
     });
     svg.append('polygon')
-      .attr('points', pts.map(p=>p.join(',')).join(' '))
-      .attr('fill','none').attr('stroke','#ddd');
+      .attr('points', pts.map(p => p.join(',')).join(' '))
+      .attr('fill', 'none')
+      .attr('stroke', '#ddd');
   }
 
-  // >>> 3) eixos + rótulos (com ancoragem inteligente) <<<
-  numericDims.forEach((dim,i) => {
-    const a = -Math.PI/2 + i * angleStep;
+  // 4)  Eixos e rótulos
+  numericDims.forEach((dim, i) => {
+    const a = -Math.PI / 2 + i * angleStep;
     svg.append('line')
-      .attr('x1',0).attr('y1',0)
-      .attr('x2',Math.cos(a)*R).attr('y2',Math.sin(a)*R)
-      .attr('stroke','#ccc');
+      .attr('x1', 0).attr('y1', 0)
+      .attr('x2', Math.cos(a) * R).attr('y2', Math.sin(a) * R)
+      .attr('stroke', '#ccc');
 
-    const x = Math.cos(a)*(R+12),
-          y = Math.sin(a)*(R+12);
     svg.append('text')
-      .attr('x', x).attr('y', y)
+      .attr('x', Math.cos(a) * (R + 12))
+      .attr('y', Math.sin(a) * (R + 12))
       .attr('dy', '0.35em')
-      .attr('text-anchor', Math.abs(a) < Math.PI/2 ? 'start'
-                       : Math.abs(a) > (Math.PI*3/2) ? 'end'
-                       : 'middle')
+      .attr('text-anchor',
+        Math.abs(a) < Math.PI / 2 ? 'start' :
+        Math.abs(a) > (3 * Math.PI) / 2 ? 'end' : 'middle')
       .style('font-size', 11)
-      .call(wrap, 60)          // função wrap abaixo
       .text(dim);
   });
 
-  // >>> 4) polígono para o ponto selecionado (ou média) <<<
-  const datum = selectedDatum ||
-    Object.fromEntries(numericDims.map(dim=>[dim,d3.mean(filteredData,d=>d[dim])]));
-
-  const poly = numericDims.map((dim,i) => {
-    const a = -Math.PI/2 + i * angleStep;
-    const r = scales[dim](datum[dim]) * R;
-    return [Math.cos(a)*r, Math.sin(a)*r];
-  });
-
-  svg.append('polygon')
-    .attr('points', poly.map(p=>p.join(',')).join(' '))
-    .attr('fill','rgba(70,130,180,0.4)')
-    .attr('stroke','#4682b4').attr('stroke-width',2);
-
-  // --- função auxiliar para quebrar linhas ---
-  function wrap(text, width) {
-    text.each(function() {
-      const words = d3.select(this).text().split(/\s+/).reverse();
-      let line = [], lineNumber = 0, tspan;
-      const y = this.getAttribute('y'), x = this.getAttribute('x');
-      d3.select(this).text(null);
-      tspan = d3.select(this).append('tspan').attr('x',x).attr('y',y);
-      while (words.length) {
-        line.push(words.pop());
-        tspan.text(line.join(' '));
-        if (tspan.node().getComputedTextLength() > width) {
-          line.pop();
-          tspan.text(line.join(' '));
-          line = [words.pop()];
-          tspan = d3.select(this).append('tspan')
-            .attr('x',x).attr('y',y)
-            .attr('dy', ++lineNumber * 12 + 'px')
-            .text(line.join(' '));
-        }
-      }
+  // 5)  Função auxiliar para criar o polígono de um grupo
+  function polygonFor(groupData) {
+    return numericDims.map((dim, i) => {
+      const a = -Math.PI / 2 + i * angleStep;
+      const r = scales[dim](d3.mean(groupData, d => d[dim])) * R;
+      return [Math.cos(a) * r, Math.sin(a) * r];
     });
   }
+
+  // 6)  Dados por gênero
+  const female = data.filter(d => d.Gender === 'Female');
+  const male   = data.filter(d => d.Gender === 'Male');
+
+  const polyFemale = polygonFor(female);
+  const polyMale   = polygonFor(male);
+
+  // 7)  Desenhar ambos — ordem: male abaixo, female acima
+  svg.append('polygon')
+    .attr('points', polyMale.map(p => p.join(',')).join(' '))
+    .attr('fill', 'rgba(70,130,180,0.25)')   // azul claro
+    .attr('stroke', '#4682b4')
+    .attr('stroke-width', 2);
+
+  svg.append('polygon')
+    .attr('points', polyFemale.map(p => p.join(',')).join(' '))
+    .attr('fill', 'rgba(212,63,58,0.30)')    // vermelho claro
+    .attr('stroke', '#d43f3a')
+    .attr('stroke-width', 2);
+
+  // 8)  Legendinha simples
+  const legend = svg.append('g')
+    .attr('transform', `translate(${-W / 2 + 10},${-H / 2 + 10})`)
+    .attr('font-size', 12);
+
+  legend.append('rect').attr('x', 0).attr('y', 0).attr('width', 12).attr('height', 12)
+    .attr('fill', 'rgba(212,63,58,0.7)');
+  legend.append('text').attr('x', 18).attr('y', 10).text('Female');
+
+  legend.append('rect').attr('x', 0).attr('y', 18).attr('width', 12).attr('height', 12)
+    .attr('fill', 'rgba(70,130,180,0.7)');
+  legend.append('text').attr('x', 18).attr('y', 28).text('Male');
 }
 
 function drawScatterplot() {
@@ -1112,6 +1129,16 @@ $: if (data.length && xVar && yVar) {
         <option value="Blues">Blues</option>
       </select>
     </div>
+<!-- Filtro de gênero -->
+<div style="margin-bottom: 1rem;">
+  <label style="display:block;margin-bottom:0.3rem;"><strong>Gênero:</strong></label>
+  <select bind:value={genderFilter}
+          style="width:180px;padding:0.3rem;font-size:13px;">
+    <option>All</option>
+    <option>Female</option>
+    <option>Male</option>
+  </select>
+</div>
 
     <!-- Brushing -->
     <div>
