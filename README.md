@@ -1,58 +1,78 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/oHw8ptbv)
+
 # Ideia principal: parallel-coordinates
 https://syntagmatic.github.io/parallel-coordinates/
 
-# Leiam os Issues 
+# Estudando o Estudante: Desempenho, Perfil e Estilo de Vida
 
-## Estudando o estudante: Desempenho, Perfil e Estilo de Vida
+🔗 **Fonte dos dados**: [Kaggle - Student Attitude and Behavior Dataset](https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior)  
+🔗 **Inspiração**: [Syntagmatic - Parallel Coordinates](https://syntagmatic.github.io/parallel-coordinates/)
 
-Dados disponíveis em: https://www.kaggle.com/datasets/susanta21/student-attitude-and-behavior
+Trabalhamos com um conjunto de dados sobre os hábitos e perfis de estudantes. Por conter uma grande quantidade de variáveis, escolhemos usar **gráficos de coordenadas paralelas**, que permitem visualizar múltiplas variáveis simultaneamente. 
+
+Além disso, adicionamos visualizações complementares (Radar Chart e Scatter Plot) para ampliar a capacidade de análise e comparação entre grupos.
+
+---
+
+## Funcionalidades Principais (Resumo)
+
+**Gráfico de Coordenadas Paralelas:**
+- Seleção de colunas
+- Filtragem por brushing (modo “colorir” ou “esconder”)
+- Reordenação dos eixos
+- Identificação e seleção de pontos
+- Coloração por variável (quantitativa ou categórica)
+- Suporte a múltiplas paletas (Turbo, Viridis, etc.)
+
+**Outros gráficos integrados:**
+- Radar Chart para médias por gênero
+- Scatter Plot com suporte a boxplot e dotplot
+
+---
+
+## Funcionalidades dos Gráficos Interativos
+
+Nosso dashboard combina **três visualizações principais** — **Coordenadas Paralelas**, **Radar Chart** e **Scatter Plot** — que compartilham dados e interações. Isso permite uma análise integrada e dinâmica de múltiplas variáveis.
+
+---
+
+### 1️⃣ Coordenadas Paralelas
+
+**Objetivo**: Visualizar múltiplas variáveis simultaneamente para identificar padrões, correlações e outliers.
+
+**Funcionalidades:**
+- Seleção de variáveis (eixos)
+- Reordenação dos eixos via arrasto
+- Brushing (filtro por eixo)
+- Coloração por variável (contínua ou categórica)
+- Paletas de cor: Turbo, Viridis, Plasma, Inferno, Blues
+- Seleção de linha individual com clique
+- Remoção temporária de pontos
+- Restauração de todos os dados removidos
+- Dois modos de filtro:
+  - *Colorir selecionados* (default)
+  - *Esconder não selecionados*
+---
+
+### 2️⃣ Radar Chart
+
+---
+
+### 3️⃣ Gráfico Bivariado Adaptativo
+
+**Objetivo**: Explorar relações entre duas variáveis específicas (quantitativas ou categóricas).
+
+**Funcionalidades:**
+- Adaptação automática do tipo de gráfico:
+  - Numérica × Numérica → *scatter plot*
+  - Categórica × Numérica → *boxplot*
+  - Categórica × Categórica → *dotplot*
+- Tooltip com estatísticas ou frequência no *dotplot*
+- Seleção de pontos com clique
+
+---
+
+Essas visualizações interativas permitem uma análise exploratória rica e fluida, facilitando a descoberta de padrões, comparações entre grupos e identificação de comportamentos extremos entre estudantes.
 
 
-# Svelte + Vite
 
-This template should help get you started developing with Svelte in Vite.
-
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
-
-## Need an official Svelte framework?
-
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
-
-## Technical considerations
-
-**Why use this over SvelteKit?**
-
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
-```
