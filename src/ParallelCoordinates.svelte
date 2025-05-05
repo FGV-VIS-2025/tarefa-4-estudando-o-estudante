@@ -1024,40 +1024,29 @@ $: if (data.length && xVar && yVar) {
   Visualização de Coordenadas Paralelas Interativas
 </h2>
 
-<!-- 🎨 Layout geral: legenda | gráfico | controles -->
+<!-- Coordenadas Paralelas (topo) -->
 <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; font-family: 'Inter', sans-serif;">
-<div style="display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.5rem;">
-  <div style="font-size: 13px; font-weight: bold; margin-bottom: 0.5rem;">
-    Legenda de Cores
+  <!-- Legenda -->
+  <div style="display: flex; flex-direction: column; align-items: flex-start; margin-top: 0.5rem; width: 60px;">
+    <div style="font-size: 13px; font-weight: bold; margin-bottom: 0.5rem;">
+      Legenda
+    </div>
+    <div bind:this={legendContainer} style="width: 60px; height: 500px;"></div>
   </div>
-  <div bind:this={legendContainer} style="width: 60px; height: 500px;"></div>
-  <div bind:this={scatterContainer}></div>
-  <div style="margin-top:1rem;" bind:this={radarContainer}></div>  <!-- ②  -->
 
-</div>
+  <!-- Gráfico Principal -->
+  <div style="flex-grow: 1; position: relative;">
+    <div bind:this={container} style="height: 600px;"></div>
+    <button
+      type="button"
+      on:click={clearFilters}
+      style="position: absolute; bottom: 10px; right: 10px; background:#ff9800; color:#fff; padding:0.5rem 1rem; border:none; border-radius:6px; cursor:pointer;">
+      Remover Filtros
+    </button>
+  </div>
 
-
-  <!-- 📈 Gráfico com botão flutuante -->
-<!-- 📈 Gráfico + radar empilhados -->
-<div style="display:flex; flex-direction:column; align-items:center; position:relative;">
-  <!-- Parallel Coordinates -->
-  <div bind:this={container} style="height: 600px;"></div>
-
-  <!-- Radar Chart — fica logo abaixo -->
-  <div bind:this={radarContainer} style="height: 420px; width: 100%; margin-top: 1rem;"></div>
-
-  <!-- Botão flutuante continua funcionando -->
-  <button
-    type="button"
-    on:click={clearFilters}
-    style="position: absolute; bottom: 10px; right: 10px; background:#ff9800; color:#fff; padding:0.5rem 1rem; border:none; border-radius:6px; cursor:pointer;">
-    Remover Filtros
-  </button>
-</div>
-
-  <!-- 🎛️ Painel de controles à direita -->
+  <!-- Controles -->
   <div style="min-width: 200px; font-size: 14px;">
-    
     <!-- Seletor de colunas -->
     <div class="multiselect" style="margin-bottom: 1.5rem;">
       <button class="dropdown-btn" on:click={toggleDropdown}>
@@ -1134,6 +1123,39 @@ $: if (data.length && xVar && yVar) {
   </div>
 </div>
 
+<!-- Radar e Scatter (abaixo) -->
+<div style="max-width: 1200px; margin: 0 auto; display: flex; gap: 1rem; margin-top: 1rem; font-family: 'Inter', sans-serif;">
+  <!-- Radar Plot (40%) -->
+  <div style="flex: 0 0 40%;">
+    <h3 style="text-align: center;">Radar Plot</h3>
+    <div bind:this={radarContainer} style="height: 400px;"></div>
+  </div>
+
+  <!-- Scatter Plot (60%) -->
+  <div style="flex: 0 0 60%;">
+    <h3 style="text-align: center;">Gráfico de Dispersão</h3>
+    <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
+      <label>
+        Eixo X:
+        <select bind:value={xVar}>
+          {#each allDimensions as dim}
+            <option value={dim}>{dim}</option>
+          {/each}
+        </select>
+      </label>
+      <label>
+        Eixo Y:
+        <select bind:value={yVar}>
+          {#each allDimensions as dim}
+            <option value={dim}>{dim}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+    <div bind:this={scatterContainer} style="height: 400px;"></div>
+  </div>
+</div>
+
 <!-- 🔁 Detalhes do ponto selecionado -->
 {#if selectedDatum}
   <div style="max-width: 900px; margin: 2rem auto; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px;">
@@ -1157,29 +1179,6 @@ $: if (data.length && xVar && yVar) {
     </button>
   </div>
 {/if}
-<div style="max-width: 900px; margin: 2rem auto;">
-  <h3 style="text-align: center;">Gráfico de Dispersão</h3>
-  <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
-    <label>
-      Eixo X:
-      <select bind:value={xVar}>
-        {#each allDimensions as dim}
-          <option value={dim}>{dim}</option>
-        {/each}
-      </select>
-    </label>
-    <label>
-      Eixo Y:
-      <select bind:value={yVar}>
-        {#each allDimensions as dim}
-          <option value={dim}>{dim}</option>
-        {/each}
-      </select>
-    </label>
-  </div>
-  <div bind:this={scatterContainer}></div>
-
-</div>
 
 <!-- ♻️ Botão de restaurar -->
 <div style="text-align: center; margin-top: 1rem;">
