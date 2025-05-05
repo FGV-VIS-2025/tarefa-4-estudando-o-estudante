@@ -89,3 +89,5 @@ Essas visualizações interativas permitem uma análise exploratória rica e flu
 Nosso processo de desenvolvimento foi bastante colaborativo. Distribuímos as tarefas conforme a necessidade do momento, o que significa que todos os membros da equipe contribuíram tanto com o código quanto com decisões de design. Em diversas etapas, cada um participou desde o esboço inicial de ideias até a depuração de bugs. Essa abordagem flexível permitiu que todos tivessem uma compreensão ampla do projeto e colaborassem de forma efetiva em várias frentes.
 
 Estimamos que foram investidas aproximadamente 20 horas por pessoa. Os aspectos que mais demandaram tempo foram integrar a interatividade tanto individual quanto compartilhada entre os gráficos (principalmente a compartilhada) e no começo do projeto, alguns problemas com a versão do Svelte
+
+Uso de IA para depuração e ferramenta de pesquisa para funcionalidades e comandos do d3 e svelte, assistente para otimizar partes do código, e ajudar na resolução de problemas específicos
