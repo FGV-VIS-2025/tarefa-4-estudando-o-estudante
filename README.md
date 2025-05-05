@@ -32,7 +32,7 @@ Além disso, adicionamos visualizações complementares (Radar Chart e Scatter P
 
 ## Funcionalidades dos Gráficos Interativos
 
-Nosso dashboard combina **três visualizações principais** — **Coordenadas Paralelas**, **Radar Chart** e **Scatter Plot** — que compartilham dados e interações. Isso permite uma análise integrada e dinâmica de múltiplas variáveis.
+Nosso dashboard combina **três visualizações principais** — **Coordenadas Paralelas**, **Radar Chart** e **Gráfico Bivariado Adaptativo** — que compartilham dados e interações. Isso permite uma análise integrada e dinâmica de múltiplas variáveis.
 
 ---
 
@@ -49,9 +49,7 @@ Nosso dashboard combina **três visualizações principais** — **Coordenadas P
 - Seleção de linha individual com clique
 - Remoção temporária de pontos
 - Restauração de todos os dados removidos
-- Dois modos de filtro:
-  - *Colorir selecionados* (default)
-  - *Esconder não selecionados*
+
 ---
 
 ### 2️⃣ Radar Chart
@@ -65,7 +63,9 @@ Nosso dashboard combina **três visualizações principais** — **Coordenadas P
 - Tooltip interativo para cada ponto do polígono, exibindo a média correspondente
 - Clique nos vértices exibe o valor numérico diretamente no gráfico
 
+
 O Radar Chart só é exibido se ao menos 3 variáveis numéricas forem selecionadas. Ele se adapta automaticamente à seleção atual feita nas coordenadas paralelas.
+
 ---
 
 ### 3️⃣ Gráfico Bivariado Adaptativo
@@ -85,4 +85,7 @@ O Radar Chart só é exibido se ao menos 3 variáveis numéricas forem seleciona
 Essas visualizações interativas permitem uma análise exploratória rica e fluida, facilitando a descoberta de padrões, comparações entre grupos e identificação de comportamentos extremos entre estudantes.
 
 
+---
+Nosso processo de desenvolvimento foi bastante colaborativo. Distribuímos as tarefas conforme a necessidade do momento, o que significa que todos os membros da equipe contribuíram tanto com o código quanto com decisões de design. Em diversas etapas, cada um participou desde o esboço inicial de ideias até a depuração de bugs. Essa abordagem flexível permitiu que todos tivessem uma compreensão ampla do projeto e colaborassem de forma efetiva em várias frentes.
 
+Estimamos que foram investidas aproximadamente  horas por pessoa. Os aspectos que mais demandaram tempo foram 
