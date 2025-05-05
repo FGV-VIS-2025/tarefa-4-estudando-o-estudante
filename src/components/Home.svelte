@@ -50,6 +50,22 @@
   .faixa-content img:first-child {
     cursor: pointer;
   }
+  /* estilo */
+.big-btn {
+  font-size: 1.1rem;          /* texto maior */
+  padding: 0.9rem 2.2rem;     /* mais altura e largura */
+  border-radius: 10px;        /* cantos suaves */
+  background: #66a1ee;        /* cor de fundo */
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+
+.big-btn:hover {
+  transform: scale(1.04);     /* leve zoom no hover */
+}
+
 </style>
 
 <div class="hero">
@@ -64,8 +80,11 @@
   </div>
 </div>
 
+<!-- componente -->
 <div class="faixa">
   <div class="faixa-content">
-    <button on:click={onStart}> Prosseguir para visualização </button>
+    <button class="big-btn" on:click={onStart}>
+      Prosseguir para visualização
+    </button>
   </div>
 </div>
