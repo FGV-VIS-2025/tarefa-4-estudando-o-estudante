@@ -574,16 +574,23 @@ function drawRadarChart() {
   d3.select(radarContainer).selectAll('*').remove();
 
   /*───────────────────────────────────
+    0.  Qual conjunto usar? (já respeita filtros externos)
+  ───────────────────────────────────*/
+  const base = filteredData && filteredData.length ? filteredData : data;
+
+  /*───────────────────────────────────
     1. Dimensões numéricas válidas
   ───────────────────────────────────*/
   const ignore = new Set(['id']);
-  const numericDims = selectedDimensions.filter(dim =>
-    !ignore.has(dim) &&
-    data.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
+  const numericDims = selectedDimensions.filter(
+    dim =>
+      !ignore.has(dim) &&
+      base.every(d => typeof d[dim] === 'number' && !isNaN(d[dim]))
   );
 
   if (numericDims.length < 3) {
-    d3.select(radarContainer).append('div')
+    d3.select(radarContainer)
+      .append('div')
       .style('padding', '12px')
       .text('Selecione pelo menos 3 variáveis numéricas para visualizar o Radar Plot…');
     return;
@@ -592,33 +599,38 @@ function drawRadarChart() {
   /*───────────────────────────────────
     2. Dimensões • escalas • layout
   ───────────────────────────────────*/
-  const W = 400, H = 400;
-  const R = Math.min(W, H) / 2 - 40;      // raio máximo
-  const levels = 5;                       // anéis concêntricos
-  const angleStep = 2 * Math.PI / numericDims.length;
+  const W = 400,
+    H = 400;
+  const R = Math.min(W, H) / 2 - 40;
+  const levels = 5;
+  const angleStep = (2 * Math.PI) / numericDims.length;
 
   const scales = Object.fromEntries(
     numericDims.map(dim => [
       dim,
-      d3.scaleLinear(d3.extent(data, d => d[dim]), [0, 1])
+      d3.scaleLinear(d3.extent(base, d => d[dim]), [0, 1]),
     ])
   );
 
-  const svg = d3.select(radarContainer).append('svg')
-    .attr('width', W).attr('height', H)
+  const svg = d3
+    .select(radarContainer)
+    .append('svg')
+    .attr('width', W)
+    .attr('height', H)
     .append('g')
-      .attr('transform', `translate(${W / 2},${H / 2})`);
+    .attr('transform', `translate(${W / 2},${H / 2})`);
 
   /*───────────────────────────────────
     3. Anéis de fundo
   ───────────────────────────────────*/
   for (let k = 1; k <= levels; k++) {
-    const r = R * k / levels;
+    const r = (R * k) / levels;
     const ring = numericDims.map((_, i) => {
       const a = -Math.PI / 2 + i * angleStep;
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
-    svg.append('polygon')
+    svg
+      .append('polygon')
       .attr('points', ring.map(p => p.join(',')).join(' '))
       .attr('fill', 'none')
       .attr('stroke', '#ddd');
@@ -629,18 +641,27 @@ function drawRadarChart() {
   ───────────────────────────────────*/
   numericDims.forEach((dim, i) => {
     const a = -Math.PI / 2 + i * angleStep;
-    svg.append('line')
-      .attr('x1', 0).attr('y1', 0)
-      .attr('x2', Math.cos(a) * R).attr('y2', Math.sin(a) * R)
+    svg
+      .append('line')
+      .attr('x1', 0)
+      .attr('y1', 0)
+      .attr('x2', Math.cos(a) * R)
+      .attr('y2', Math.sin(a) * R)
       .attr('stroke', '#ccc');
 
-    svg.append('text')
+    svg
+      .append('text')
       .attr('x', Math.cos(a) * (R + 12))
       .attr('y', Math.sin(a) * (R + 12))
       .attr('dy', '0.35em')
-      .attr('text-anchor',
-        Math.abs(a) < Math.PI / 2 ? 'start' :
-        Math.abs(a) > (3 * Math.PI) / 2 ? 'end' : 'middle')
+      .attr(
+        'text-anchor',
+        Math.abs(a) < Math.PI / 2
+          ? 'start'
+          : Math.abs(a) > (3 * Math.PI) / 2
+          ? 'end'
+          : 'middle'
+      )
       .style('font-size', 11)
       .text(dim);
   });
@@ -649,8 +670,8 @@ function drawRadarChart() {
     5. Estatísticas por gênero
   ───────────────────────────────────*/
   const groups = {
-    Female: data.filter(d => d.Gender === 'Female'),
-    Male:   data.filter(d => d.Gender === 'Male')
+    Female: base.filter(d => d.Gender === 'Female'),
+    Male: base.filter(d => d.Gender === 'Male'),
   };
 
   const datum = {};
@@ -667,10 +688,12 @@ function drawRadarChart() {
   });
 
   /*───────────────────────────────────
-    6. Tooltip global (lazy‑create)
+    6. Tooltip (global, reuse)
   ───────────────────────────────────*/
   if (!window.__radarTooltip) {
-    window.__radarTooltip = d3.select('body').append('div')
+    window.__radarTooltip = d3
+      .select('body')
+      .append('div')
       .attr('class', 'tooltip')
       .style('position', 'absolute')
       .style('background', '#fff')
@@ -685,81 +708,93 @@ function drawRadarChart() {
   const tooltip = window.__radarTooltip;
 
   /*───────────────────────────────────
-    7. Helper: desenha polígono + vértices
+    7. Desenha polígonos primeiro (sem captar mouse)
   ───────────────────────────────────*/
-  function drawGroup(poly, colour, label) {
-    // polígono preenchido
-    svg.append('polygon')
-      .attr('points', poly.map(p => p.join(',')).join(' '))
-      .attr('fill', colour.fill)
-      .attr('stroke', colour.stroke)
-      .attr('stroke-width', 2);
+  const polyStyle = {
+    Male: { fill: 'rgba(70,130,180,0.25)', stroke: '#4682b4' },
+    Female: { fill: 'rgba(212,63,58,0.30)', stroke: '#d43f3a' },
+  };
 
-    // vértices interativos
-    svg.selectAll(`.dot-${label}`)
-      .data(poly.map((p, i) => ({ p, dim: numericDims[i] })))
-      .enter().append('circle')
-        .attr('class', `dot-${label}`)
-        .attr('cx', d => d.p[0])
-        .attr('cy', d => d.p[1])
-        .attr('r', 4)
-        .attr('fill', colour.stroke)
-        .attr('cursor', 'pointer')
-        .on('mouseover', (event, d) => {
-          tooltip
-            .style('opacity', 1)
-            .html(`<strong>${d.dim}</strong>: ${d3.format('.2f')(datum[label][d.dim])}`);
-        })
-        .on('mousemove', event => {
-          tooltip
-            .style('left', `${event.pageX + 12}px`)
-            .style('top',  `${event.pageY - 20}px`);
-        })
-        .on('mouseout', () => tooltip.style('opacity', 0))
-        .on('click', function (_, d) {   // pin value label
-          const tag = `value-${label}-${d.dim.replace(/\s+/g,'_')}`;
-          if (svg.selectAll(`.${tag}`).size()) return; // evita duplicado
-          svg.append('text')
-            .attr('class', tag)
-            .attr('x', d.p[0] + 6)
-            .attr('y', d.p[1])
-            .attr('dy', '0.35em')
-            .attr('font-size', 11)
-            .attr('fill', colour.stroke)
-            .text(d3.format('.2f')(datum[label][d.dim]));
-        });
-  }
+  Object.entries(polys).forEach(([key, poly]) => {
+    if (!poly.length) return; // evita grupo vazio
+    svg
+      .append('polygon')
+      .attr('points', poly.map(p => p.join(',')).join(' '))
+      .attr('fill', polyStyle[key].fill)
+      .attr('stroke', polyStyle[key].stroke)
+      .attr('stroke-width', 2)
+      .attr('pointer-events', 'none'); // não bloqueia círculos
+  });
 
   /*───────────────────────────────────
-    8. Desenha Male (azul) depois Female (vermelho)
+    8. Vértices interativos (ficam por cima)
   ───────────────────────────────────*/
-  drawGroup(
-    polys.Male,
-    { fill: 'rgba(70,130,180,0.25)', stroke: '#4682b4' },
-    'Male'
-  );
-  drawGroup(
-    polys.Female,
-    { fill: 'rgba(212,63,58,0.30)', stroke: '#d43f3a' },
-    'Female'
-  );
+  Object.entries(polys).forEach(([key, poly]) => {
+    if (!poly.length) return;
+    const colour = polyStyle[key].stroke;
+
+    svg
+      .selectAll(`.dot-${key}`)
+      .data(poly.map((p, i) => ({ p, dim: numericDims[i] })))
+      .enter()
+      .append('circle')
+      .attr('class', `dot-${key}`)
+      .attr('cx', d => d.p[0])
+      .attr('cy', d => d.p[1])
+      .attr('r', 4)
+      .attr('fill', colour)
+      .attr('cursor', 'pointer')
+      .on('mouseover', (event, d) => {
+        tooltip
+          .style('opacity', 1)
+          .html(
+            `<strong>${d.dim}</strong>: ${d3.format('.2f')(datum[key][d.dim])}`
+          );
+      })
+      .on('mousemove', event => {
+        tooltip
+          .style('left', `${event.pageX + 12}px`)
+          .style('top', `${event.pageY - 20}px`);
+      })
+      .on('mouseout', () => tooltip.style('opacity', 0))
+      .on('click', function (_, d) {
+        const tag = `value-${key}-${d.dim.replace(/\s+/g, '_')}`;
+        if (svg.selectAll(`.${tag}`).size()) return;
+        svg
+          .append('text')
+          .attr('class', tag)
+          .attr('x', d.p[0] + 6)
+          .attr('y', d.p[1])
+          .attr('dy', '0.35em')
+          .attr('font-size', 11)
+          .attr('fill', colour)
+          .text(d3.format('.2f')(datum[key][d.dim]));
+      });
+  });
 
   /*───────────────────────────────────
     9. Mini‑legenda
   ───────────────────────────────────*/
-  const legend = svg.append('g')
+  const legend = svg
+    .append('g')
     .attr('transform', `translate(${-W / 2 + 10},${-H / 2 + 10})`)
     .attr('font-size', 12);
 
-  legend.append('rect').attr('width', 12).attr('height', 12)
+  legend
+    .append('rect')
+    .attr('width', 12)
+    .attr('height', 12)
     .attr('fill', 'rgba(212,63,58,0.7)');
   legend.append('text').attr('x', 18).attr('y', 10).text('Female');
 
-  legend.append('rect').attr('y', 18).attr('width', 12).attr('height', 12)
+  legend
+    .append('rect')
+    .attr('y', 18)
+    .attr('width', 12)
+    .attr('height', 12)
     .attr('fill', 'rgba(70,130,180,0.7)');
   legend.append('text').attr('x', 18).attr('y', 28).text('Male');
 }
-
 function drawScatterplot() {
   d3.select(scatterContainer).selectAll('*').remove();
 
