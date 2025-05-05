@@ -1244,17 +1244,7 @@ $: if (data.length && xVar && yVar) {
     </div>
 
     <!-- Brushing -->
-    <div>
-      <label for="brush-mode-select" style="display: block; margin-bottom: 0.3rem;"><strong>Brushing:</strong></label>
-      <select 
-        id="brush-mode-select" 
-        bind:value={brushMode}
-        style="width: 180px; padding: 0.3rem; font-size: 13px;"
-      >
-        <option value="color">Colorir selecionados</option>
-        <option value="hide">Esconder não selecionados</option>
-      </select>
-    </div>
+
   </div>
 </div>
 

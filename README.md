@@ -18,7 +18,7 @@ Além disso, adicionamos visualizações complementares (Radar Chart e Scatter P
 
 **Gráfico de Coordenadas Paralelas:**
 - Seleção de colunas
-- Filtragem por brushing (modo “colorir” ou “esconder”)
+- Filtragem por brushing 
 - Reordenação dos eixos
 - Identificação e seleção de pontos
 - Coloração por variável (quantitativa ou categórica)
