@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   let tooltip;
-  let genderFilter = 'All';        // ⬅️ novo
 
   let container;
   let data = [];
@@ -47,6 +46,7 @@ function restoreAllData() {
   selectedDatum = null;     // Limpa qualquer seleção
   computeColourScale();     // Recalcula a escala de cores
   drawParallel();           // Redesenha o gráfico completo
+  drawScatterplot();
 }
 
 function computeColourScale() {
@@ -216,6 +216,10 @@ function clearFilters() {
   selectedDimensions.forEach(dim => {
     createBrush(svg, dim, 500 - 30 - 10);
   });
+
+  //Atualiza os dois outros gráficos
+  drawScatterplot();
+  drawRadarChart();
 
   // Atualiza a legenda se necessário
   if (legendContainer) drawLegend();
@@ -439,18 +443,12 @@ svg.selectAll('.axis')
 }
 
 function applyFilters() {
-  filteredData = (genderFilter === 'All')
-      ? data
-      : data.filter(d => d.Gender === genderFilter);
-
   computeColourScale();   // mantém coerente a escala
   drawParallel();         // redesenha gráficos
   drawRadarChart();
   drawScatterplot();
   drawLegend();
 }
-
-$: if (genderFilter) applyFilters();   // reativo
 
 
 function updateFilteredData() {
@@ -488,6 +486,9 @@ function updateFilteredData() {
     .attr('stroke-width', d => 
       filteredData.includes(d) ? 1.5 : 0.8 // Linhas não selecionadas mais finas
     );
+  
+  drawScatterplot();
+  drawRadarChart();
 }
 
 function drawLegend() {
@@ -809,9 +810,9 @@ function drawScatterplot() {
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
-  const plotData = filteredData.filter(d =>
-    d[xVar] !== undefined && d[yVar] !== undefined && !removedData.has(d.id)
-  );
+  // Usa filteredData se existir, senão usa data
+  const plotData = (filteredData && filteredData.length ? filteredData : data)
+    .filter(d => d[xVar] !== undefined && d[yVar] !== undefined && !removedData.has(d.id));
 
   const isXNumeric = plotData.every(d => typeof d[xVar] === 'number' && !isNaN(d[xVar]));
   const isYNumeric = plotData.every(d => typeof d[yVar] === 'number' && !isNaN(d[yVar]));
@@ -1241,16 +1242,6 @@ $: if (data.length && xVar && yVar) {
         <option value="Blues">Blues</option>
       </select>
     </div>
-<!-- Filtro de gênero -->
-<div style="margin-bottom: 1rem;">
-  <label style="display:block;margin-bottom:0.3rem;"><strong>Gênero:</strong></label>
-  <select bind:value={genderFilter}
-          style="width:180px;padding:0.3rem;font-size:13px;">
-    <option>All</option>
-    <option>Female</option>
-    <option>Male</option>
-  </select>
-</div>
 
     <!-- Brushing -->
     <div>
