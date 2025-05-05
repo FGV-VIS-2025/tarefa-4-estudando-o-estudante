@@ -56,6 +56,16 @@ Nosso dashboard combina **três visualizações principais** — **Coordenadas P
 
 ### 2️⃣ Radar Chart
 
+**Objetivo**: Comparar o perfil médio de estudantes por gênero (masculino e feminino) em múltiplas variáveis numéricas.
+
+**Funcionalidades**:
+- Cálculo automático das médias para cada grupo (masculino e feminino)
+- Eixos radiais representam variáveis numéricas selecionadas
+- Polígonos coloridos representam os grupos, com áreas distintas
+- Tooltip interativo para cada ponto do polígono, exibindo a média correspondente
+- Clique nos vértices exibe o valor numérico diretamente no gráfico
+
+O Radar Chart só é exibido se ao menos 3 variáveis numéricas forem selecionadas. Ele se adapta automaticamente à seleção atual feita nas coordenadas paralelas.
 ---
 
 ### 3️⃣ Gráfico Bivariado Adaptativo
