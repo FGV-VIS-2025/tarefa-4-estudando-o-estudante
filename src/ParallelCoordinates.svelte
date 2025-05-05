@@ -567,7 +567,9 @@ function drawRadarChart() {
   if (!radarContainer) return;
   d3.select(radarContainer).selectAll('*').remove();
 
-  // 1) ­­­­­Dimensões numéricas válidas
+  /*───────────────────────────────────
+    1. Dimensões numéricas válidas
+  ───────────────────────────────────*/
   const ignore = new Set(['id']);
   const numericDims = selectedDimensions.filter(dim =>
     !ignore.has(dim) &&
@@ -581,8 +583,12 @@ function drawRadarChart() {
     return;
   }
 
-  // 2)  Dimensões e escalas 0‑1
-  const W = 400, H = 400, R = Math.min(W, H) / 2 - 40, levels = 5;
+  /*───────────────────────────────────
+    2. Dimensões • escalas • layout
+  ───────────────────────────────────*/
+  const W = 400, H = 400;
+  const R = Math.min(W, H) / 2 - 40;      // raio máximo
+  const levels = 5;                       // anéis concêntricos
   const angleStep = 2 * Math.PI / numericDims.length;
 
   const scales = Object.fromEntries(
@@ -592,25 +598,29 @@ function drawRadarChart() {
     ])
   );
 
-  // 3)  SVG base + anéis
   const svg = d3.select(radarContainer).append('svg')
     .attr('width', W).attr('height', H)
     .append('g')
       .attr('transform', `translate(${W / 2},${H / 2})`);
 
+  /*───────────────────────────────────
+    3. Anéis de fundo
+  ───────────────────────────────────*/
   for (let k = 1; k <= levels; k++) {
     const r = R * k / levels;
-    const pts = numericDims.map((_, i) => {
+    const ring = numericDims.map((_, i) => {
       const a = -Math.PI / 2 + i * angleStep;
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
     svg.append('polygon')
-      .attr('points', pts.map(p => p.join(',')).join(' '))
+      .attr('points', ring.map(p => p.join(',')).join(' '))
       .attr('fill', 'none')
       .attr('stroke', '#ddd');
   }
 
-  // 4)  Eixos e rótulos
+  /*───────────────────────────────────
+    4. Eixos + rótulos
+  ───────────────────────────────────*/
   numericDims.forEach((dim, i) => {
     const a = -Math.PI / 2 + i * angleStep;
     svg.append('line')
@@ -629,45 +639,117 @@ function drawRadarChart() {
       .text(dim);
   });
 
-  // 5)  Função auxiliar para criar o polígono de um grupo
-  function polygonFor(groupData) {
-    return numericDims.map((dim, i) => {
+  /*───────────────────────────────────
+    5. Estatísticas por gênero
+  ───────────────────────────────────*/
+  const groups = {
+    Female: data.filter(d => d.Gender === 'Female'),
+    Male:   data.filter(d => d.Gender === 'Male')
+  };
+
+  const datum = {};
+  const polys = {};
+  Object.entries(groups).forEach(([key, arr]) => {
+    datum[key] = Object.fromEntries(
+      numericDims.map(dim => [dim, d3.mean(arr, d => d[dim])])
+    );
+    polys[key] = numericDims.map((dim, i) => {
       const a = -Math.PI / 2 + i * angleStep;
-      const r = scales[dim](d3.mean(groupData, d => d[dim])) * R;
+      const r = scales[dim](datum[key][dim]) * R;
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
+  });
+
+  /*───────────────────────────────────
+    6. Tooltip global (lazy‑create)
+  ───────────────────────────────────*/
+  if (!window.__radarTooltip) {
+    window.__radarTooltip = d3.select('body').append('div')
+      .attr('class', 'tooltip')
+      .style('position', 'absolute')
+      .style('background', '#fff')
+      .style('padding', '6px 10px')
+      .style('border', '1px solid #ccc')
+      .style('border-radius', '4px')
+      .style('pointer-events', 'none')
+      .style('font-size', '13px')
+      .style('color', '#333')
+      .style('opacity', 0);
+  }
+  const tooltip = window.__radarTooltip;
+
+  /*───────────────────────────────────
+    7. Helper: desenha polígono + vértices
+  ───────────────────────────────────*/
+  function drawGroup(poly, colour, label) {
+    // polígono preenchido
+    svg.append('polygon')
+      .attr('points', poly.map(p => p.join(',')).join(' '))
+      .attr('fill', colour.fill)
+      .attr('stroke', colour.stroke)
+      .attr('stroke-width', 2);
+
+    // vértices interativos
+    svg.selectAll(`.dot-${label}`)
+      .data(poly.map((p, i) => ({ p, dim: numericDims[i] })))
+      .enter().append('circle')
+        .attr('class', `dot-${label}`)
+        .attr('cx', d => d.p[0])
+        .attr('cy', d => d.p[1])
+        .attr('r', 4)
+        .attr('fill', colour.stroke)
+        .attr('cursor', 'pointer')
+        .on('mouseover', (event, d) => {
+          tooltip
+            .style('opacity', 1)
+            .html(`<strong>${d.dim}</strong>: ${d3.format('.2f')(datum[label][d.dim])}`);
+        })
+        .on('mousemove', event => {
+          tooltip
+            .style('left', `${event.pageX + 12}px`)
+            .style('top',  `${event.pageY - 20}px`);
+        })
+        .on('mouseout', () => tooltip.style('opacity', 0))
+        .on('click', function (_, d) {   // pin value label
+          const tag = `value-${label}-${d.dim.replace(/\s+/g,'_')}`;
+          if (svg.selectAll(`.${tag}`).size()) return; // evita duplicado
+          svg.append('text')
+            .attr('class', tag)
+            .attr('x', d.p[0] + 6)
+            .attr('y', d.p[1])
+            .attr('dy', '0.35em')
+            .attr('font-size', 11)
+            .attr('fill', colour.stroke)
+            .text(d3.format('.2f')(datum[label][d.dim]));
+        });
   }
 
-  // 6)  Dados por gênero
-  const female = data.filter(d => d.Gender === 'Female');
-  const male   = data.filter(d => d.Gender === 'Male');
+  /*───────────────────────────────────
+    8. Desenha Male (azul) depois Female (vermelho)
+  ───────────────────────────────────*/
+  drawGroup(
+    polys.Male,
+    { fill: 'rgba(70,130,180,0.25)', stroke: '#4682b4' },
+    'Male'
+  );
+  drawGroup(
+    polys.Female,
+    { fill: 'rgba(212,63,58,0.30)', stroke: '#d43f3a' },
+    'Female'
+  );
 
-  const polyFemale = polygonFor(female);
-  const polyMale   = polygonFor(male);
-
-  // 7)  Desenhar ambos — ordem: male abaixo, female acima
-  svg.append('polygon')
-    .attr('points', polyMale.map(p => p.join(',')).join(' '))
-    .attr('fill', 'rgba(70,130,180,0.25)')   // azul claro
-    .attr('stroke', '#4682b4')
-    .attr('stroke-width', 2);
-
-  svg.append('polygon')
-    .attr('points', polyFemale.map(p => p.join(',')).join(' '))
-    .attr('fill', 'rgba(212,63,58,0.30)')    // vermelho claro
-    .attr('stroke', '#d43f3a')
-    .attr('stroke-width', 2);
-
-  // 8)  Legendinha simples
+  /*───────────────────────────────────
+    9. Mini‑legenda
+  ───────────────────────────────────*/
   const legend = svg.append('g')
     .attr('transform', `translate(${-W / 2 + 10},${-H / 2 + 10})`)
     .attr('font-size', 12);
 
-  legend.append('rect').attr('x', 0).attr('y', 0).attr('width', 12).attr('height', 12)
+  legend.append('rect').attr('width', 12).attr('height', 12)
     .attr('fill', 'rgba(212,63,58,0.7)');
   legend.append('text').attr('x', 18).attr('y', 10).text('Female');
 
-  legend.append('rect').attr('x', 0).attr('y', 18).attr('width', 12).attr('height', 12)
+  legend.append('rect').attr('y', 18).attr('width', 12).attr('height', 12)
     .attr('fill', 'rgba(70,130,180,0.7)');
   legend.append('text').attr('x', 18).attr('y', 28).text('Male');
 }
