@@ -1268,7 +1268,7 @@ $: if (data.length && xVar && yVar) {
 
   <!-- Scatter Plot (60%) -->
   <div style="flex: 0 0 60%;">
-    <h3 style="text-align: center;">Gráfico de Dispersão</h3>
+    <h3 style="text-align: center;">Gráfico Bivariado Adaptativo</h3>
     <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;">
       <label>
         Eixo X:
